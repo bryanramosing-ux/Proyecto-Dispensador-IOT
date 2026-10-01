@@ -12,6 +12,9 @@ esquina superior izquierda, vista desde el lado de los componentes. Ver `placa_c
 | J2 | J2 HC-SR04 | VCC (33, 4), TRIG (33, 5), ECHO (33, 6), GND (33, 7) |
 | J3 | J3 SERVO señal | SIG (33, 9), GND (33, 10) |
 | J4 | J4 MEDICIÓN | VBAT (33, 12), V6 (33, 13), VPAN (33, 14), GND (33, 15) |
+| J5 | J5 NIVEL TOLVA | GND (6, 2), ECHO (7, 2), TRIG (8, 2), VCC (9, 2) |
+| R5 | R5 1k | 1 (7, 3), 2 (7, 7) |
+| R6 | R6 2k | 1 (6, 7), 2 (2, 7) |
 | R1 | R1 1k | 1 (31, 6), 2 (27, 6) |
 | R2 | R2 2k | 1 (24, 6), 2 (24, 10) |
 | R3 | R3 330 | 1 (31, 9), 2 (27, 9) |
@@ -21,7 +24,7 @@ esquina superior izquierda, vista desde el lado de los componentes. Ver `placa_c
 | C3 | C3 100n | 1 (31, 21), 2 (31, 23) |
 | C4 | C4 470µF | + (21, 3), - (21, 5) |
 
-Bus GND en L: agujeros (35,2) a (35,26) y (3,26) a (35,26) unidos con estaño o alambre desnudo.
+Bus GND en U: agujeros (1,1) a (35,1), (35,1) a (35,26) y (3,26) a (35,26) unidos con estaño o alambre desnudo.
 
 ## Cables (soldar uno por uno y tachar)
 
@@ -29,31 +32,38 @@ Bus GND en L: agujeros (35,2) a (35,26) y (3,26) a (35,26) unidos con estaño o 
 |---|---|---|---|---|
 | 1 | 5V | J1.5V (33, 3) | J2.VCC (33, 4) | (recto) |
 | 2 | 5V | J1.5V (33, 3) | C4.+ (21, 3) | (recto) |
-| 3 | 5V | C4.+ (21, 3) | ESP32.A.VIN (17, 18) | (19, 3) → (19, 18) |
-| 4 | GND | J1.GND (33, 2) | bus GND (35, 2) | (recto) |
-| 5 | GND | J2.GND (33, 7) | bus GND (35, 7) | (recto) |
-| 6 | GND | J3.GND (33, 10) | bus GND (35, 10) | (recto) |
-| 7 | GND | J4.GND (33, 15) | bus GND (35, 15) | (recto) |
-| 8 | GND | ESP32.A.GND (16, 18) | bus GND (16, 26) | (recto) |
-| 9 | GND | R2.2 (24, 10) | bus GND (24, 26) | (recto) |
-| 10 | GND | R4.2 (27, 15) | bus GND (27, 26) | (recto) |
-| 11 | GND | C1.2 (25, 25) | bus GND (25, 26) | (recto) |
-| 12 | GND | C2.2 (29, 24) | bus GND (29, 26) | (recto) |
-| 13 | GND | C3.2 (31, 23) | bus GND (31, 26) | (recto) |
-| 14 | GND | C4.- (21, 5) | bus GND (21, 26) | (recto) |
-| 15 | TRIG | J2.TRIG (33, 5) | ESP32.A.D26 (11, 18) | (25, 5) → (25, 19) → (11, 19) |
-| 16 | ECHO_5V | J2.ECHO (33, 6) | R1.1 (31, 6) | (recto) |
-| 17 | ECHO_3V3 | R1.2 (27, 6) | R2.1 (24, 6) | (recto) |
-| 18 | ECHO_3V3 | R2.1 (24, 6) | ESP32.A.D34 (6, 18) | (23, 6) → (23, 24) → (6, 24) |
-| 19 | SERVO_GPIO | R3.2 (27, 9) | R4.1 (27, 11) | (recto) |
-| 20 | SERVO_GPIO | R4.1 (27, 11) | ESP32.A.D25 (10, 18) | (26, 11) → (26, 20) → (10, 20) |
-| 21 | SERVO_SIG | J3.SIG (33, 9) | R3.1 (31, 9) | (recto) |
-| 22 | VBAT_S | J4.VBAT (33, 12) | C1.1 (25, 23) | (28, 12) → (28, 23) |
-| 23 | VBAT_S | C1.1 (25, 23) | ESP32.A.D35 (7, 18) | (7, 23) |
-| 24 | V6_S | J4.V6 (33, 13) | C2.1 (29, 22) | (30, 13) → (30, 22) |
-| 25 | V6_S | C2.1 (29, 22) | ESP32.A.D32 (8, 18) | (8, 22) |
-| 26 | VPAN_S | J4.VPAN (33, 14) | C3.1 (31, 21) | (32, 14) → (32, 21) |
-| 27 | VPAN_S | C3.1 (31, 21) | ESP32.A.D33 (9, 18) | (9, 21) |
+| 3 | 5V | C4.+ (21, 3) | J5.VCC (9, 2) | (21, 2) |
+| 4 | 5V | J5.VCC (9, 2) | ESP32.A.VIN (17, 18) | (9, 7) → (18, 7) → (18, 18) |
+| 5 | GND | J1.GND (33, 2) | bus GND (33, 1) | (recto) |
+| 6 | GND | J2.GND (33, 7) | bus GND (35, 7) | (recto) |
+| 7 | GND | J3.GND (33, 10) | bus GND (35, 10) | (recto) |
+| 8 | GND | J4.GND (33, 15) | bus GND (35, 15) | (recto) |
+| 9 | GND | J5.GND (6, 2) | bus GND (6, 1) | (recto) |
+| 10 | GND | ESP32.A.GND (16, 18) | bus GND (16, 26) | (recto) |
+| 11 | GND | R2.2 (24, 10) | bus GND (24, 26) | (recto) |
+| 12 | GND | R4.2 (27, 15) | bus GND (27, 26) | (recto) |
+| 13 | GND | R6.2 (2, 7) | bus GND (2, 1) | (recto) |
+| 14 | GND | C1.2 (25, 25) | bus GND (25, 26) | (recto) |
+| 15 | GND | C2.2 (29, 24) | bus GND (29, 26) | (recto) |
+| 16 | GND | C3.2 (31, 23) | bus GND (31, 26) | (recto) |
+| 17 | GND | C4.- (21, 5) | bus GND (21, 26) | (recto) |
+| 18 | TRIG | J2.TRIG (33, 5) | ESP32.A.D26 (11, 18) | (25, 5) → (25, 19) → (11, 19) |
+| 19 | ECHO_5V | J2.ECHO (33, 6) | R1.1 (31, 6) | (recto) |
+| 20 | ECHO_3V3 | R1.2 (27, 6) | R2.1 (24, 6) | (recto) |
+| 21 | ECHO_3V3 | R2.1 (24, 6) | ESP32.A.D34 (6, 18) | (23, 6) → (23, 24) → (6, 24) |
+| 22 | SERVO_GPIO | R3.2 (27, 9) | R4.1 (27, 11) | (recto) |
+| 23 | SERVO_GPIO | R4.1 (27, 11) | ESP32.A.D25 (10, 18) | (26, 11) → (26, 20) → (10, 20) |
+| 24 | SERVO_SIG | J3.SIG (33, 9) | R3.1 (31, 9) | (recto) |
+| 25 | VBAT_S | J4.VBAT (33, 12) | C1.1 (25, 23) | (28, 12) → (28, 23) |
+| 26 | VBAT_S | C1.1 (25, 23) | ESP32.A.D35 (7, 18) | (7, 23) |
+| 27 | V6_S | J4.V6 (33, 13) | C2.1 (29, 22) | (30, 13) → (30, 22) |
+| 28 | V6_S | C2.1 (29, 22) | ESP32.A.D32 (8, 18) | (8, 22) |
+| 29 | VPAN_S | J4.VPAN (33, 14) | C3.1 (31, 21) | (32, 14) → (32, 21) |
+| 30 | VPAN_S | C3.1 (31, 21) | ESP32.A.D33 (9, 18) | (9, 21) |
+| 31 | TRIG2 | J5.TRIG (8, 2) | ESP32.B.D19 (8, 8) | (recto) |
+| 32 | ECHO2_5V | J5.ECHO (7, 2) | R5.1 (7, 3) | (recto) |
+| 33 | ECHO2_3V3 | R5.2 (7, 7) | ESP32.B.D21 (7, 8) | (recto) |
+| 34 | ECHO2_3V3 | R5.2 (7, 7) | R6.1 (6, 7) | (recto) |
 
 ## Arnés de cables de la torre
 
@@ -65,11 +75,12 @@ holgura; cortar un poco más largo y ajustar al montar. Conectores entre módulo
 |---|---|---|---|---|---|
 | J1 | Bus 5 V del cajón (Buck B) | J1 de la placa de control | 5V, GND | AWG 22 | 25 cm |
 | J4 | Divisores del cajón | J4 de la placa de control | VBAT, V6, VPAN, GND | AWG 24–26 | 25 cm |
-| J2 | J2 de la placa | HC-SR04 (cápsula 03, paso izquierdo del tabique) | VCC, TRIG, ECHO, GND | AWG 24–26 | 30 cm |
+| J2 | J2 de la placa | HC-SR04 de presencia (cápsula 03, paso izquierdo del tabique) | VCC, TRIG, ECHO, GND | AWG 24–26 | 30 cm |
+| J5 | J5 de la placa | HC-SR04 de nivel (cápsula 13b en la tapa): ranura de la tapa → conducto de la esquina trasera izquierda (07, 08d) → bahía trasera de 02 | VCC, TRIG, ECHO, GND (cable de 4 hilos, mejor apantallado) | AWG 24–26 | 120 cm (incluye 20 cm flojos para levantar la tapa) |
 | J3 | J3 de la placa | Cables naranja (señal) y marrón (GND) del MG995 | SIG, GND | AWG 24 | 20 cm (el cable del MG995 suele alcanzar) |
 | Servo 6 V | Buck A del cajón (+ C1 1000–2200 µF junto al servo) | Cable rojo (+) y marrón (−) del MG995 | 6V, GND | **AWG 20** | 40 cm |
 | Cámara | Bus 5 V del cajón | ESP32-CAM (cápsula 04, paso derecho del tabique; 470 µF + 100 nF en la cápsula) | 5V, GND | AWG 22 | 45 cm |
-| Panel | Panel solar (soporte 12) | Elevador MT3608 y divisor del panel en el cajón (por el conducto de la esquina) | +, − | AWG 22 | 70 cm (alargar el cable del panel) |
+| Panel | Panel solar en la estación remota (12a/12b) | Conector GX12 de 2 pines en la tapa del cajón 16 → elevador MT3608 y divisor del panel | +, − | AWG 20–22 (bipolar, exterior) | 3–5 m según dónde haya sol (medir) |
 
 ## Conectores de la placa
 
@@ -79,7 +90,8 @@ holgura; cortar un poco más largo y ajustar al montar. Conectores entre módulo
 | J2 | VCC / TRIG / ECHO / GND | HC-SR04 (cápsula 03) |
 | J3 | SIG / GND | Cable naranja y marrón del MG995 (el rojo va al Buck A de 6 V, NO a esta placa) |
 | J4 | VBAT / V6 / VPAN / GND | Salidas de los divisores 100k/33k, 100k/33k y 100k/100k montados en el cajón |
+| J5 | GND / ECHO / TRIG / VCC (de izquierda a derecha) | HC-SR04 de nivel en la tapa de la tolva (el mismo cable de 4 hilos, girado 180°) |
 
 Antes de colocar el ESP32: con el multímetro, comprobar que no hay continuidad entre 5V y GND
-ni entre la red ECHO_5V y el ESP32; con J1 alimentado y el HC-SR04 conectado, medir ≤ 3,4 V en el
-agujero del pin D34 al disparar.
+ni entre las redes ECHO_5V / ECHO2_5V y el ESP32; con J1 alimentado y los HC-SR04 conectados, medir
+≤ 3,4 V en los agujeros de D34 y D21 al disparar (comandos serie DIST y NIVEL).

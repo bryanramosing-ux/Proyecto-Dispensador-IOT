@@ -8,6 +8,7 @@
 #include <string>
 
 #include "../Dispensador_ESP32/Controlador.h"
+#include "../Dispensador_ESP32/NivelGeometria.h"
 
 struct FakeHW : Hardware {
   uint32_t t = 0;
@@ -16,6 +17,10 @@ struct FakeHW : Hardware {
   float vbat = 7.6f, vservo = 6.0f;
   std::deque<RespuestaClasificacion> respuestas;
   ResultadoDosis resultadoDosis = ResultadoDosis::OK;
+  float nivel = 80.0f;
+  bool pcRecibe = true;
+  std::deque<std::string> alertas;   // alertas entregadas al PC
+  int intentosAlerta = 0;
   int dosis = 0, ciclosTotales = 0, reinicios = 0, clasificaciones = 0;
   bool verbose = false;
 
@@ -34,6 +39,13 @@ struct FakeHW : Hardware {
   }
   float voltajeBateria() override { return vbat; }
   float voltajeServo() override { return vservo; }
+  float nivelTolvaPct() override { return nivel; }
+  bool notificar(Alerta a, float) override {
+    intentosAlerta++;
+    if (!pcRecibe) return false;
+    alertas.push_back(nombreAlerta(a));
+    return true;
+  }
   ResultadoDosis dosificar(uint8_t c) override {
     dosis++;
     ciclosTotales += c;
@@ -79,6 +91,13 @@ static Parametros params() {
   p.wifiReintentoMs = 5000;
   p.wifiReinicioMs = 300000;
   p.errorReintentoMs = 30000;
+  p.usarSensorNivel = true;
+  p.intervaloNivelMs = 60000;
+  p.nivelAlertaPct = 20;
+  p.nivelRearmePct = 30;
+  p.nivelVacioPct = 5;
+  p.lecturasNivel = 3;
+  p.reintentoAlertaMs = 30000;
   return p;
 }
 
@@ -380,6 +399,98 @@ int main() {
     hw.dist = 20;
     correr(c, hw, 2000);
     CHECK(hw.dosis == 2);
+  }
+
+  {
+    prueba("Nivel de tolva: alerta COMIDA_BAJA una sola vez (3 lecturas) y COMIDA_REPUESTA al recargar");
+    FakeHW hw;
+    Controlador c(hw, params());
+    c.iniciar();
+    correr(c, hw, 1000);
+    CHECK(c.nivelTolva() == 80.0f && hw.alertas.empty());
+    hw.nivel = 15;
+    correr(c, hw, 125000);          // 2 lecturas bajas: todavía no
+    CHECK(hw.alertas.empty());
+    correr(c, hw, 60000);           // 3.a lectura baja
+    CHECK(hw.alertas.size() == 1 && hw.alertas.back() == "COMIDA_BAJA");
+    correr(c, hw, 300000);          // sigue baja: no repite
+    CHECK(hw.alertas.size() == 1);
+    hw.nivel = 25;                  // entre alerta y rearme: sin cambios (histéresis)
+    correr(c, hw, 300000);
+    CHECK(hw.alertas.size() == 1 && c.alertaNivel() == Alerta::COMIDA_BAJA);
+    hw.nivel = 90;
+    correr(c, hw, 200000);
+    CHECK(hw.alertas.size() == 2 && hw.alertas.back() == "COMIDA_REPUESTA");
+    CHECK(c.alertaNivel() == Alerta::NINGUNA);
+  }
+  {
+    prueba("Tolva vacia: COMIDA_AGOTADA y no se dispensa; con recarga parcial vuelve a dispensar");
+    FakeHW hw;
+    Controlador c(hw, params());
+    c.iniciar();
+    hw.nivel = 2;
+    correr(c, hw, 200000);
+    CHECK(c.alertaNivel() == Alerta::COMIDA_AGOTADA);
+    CHECK(!hw.alertas.empty() && hw.alertas.back() == "COMIDA_AGOTADA");
+    hw.respuestas.push_back(resp(CLASE_PERRO));
+    hw.dist = 20;
+    correr(c, hw, 3000);
+    CHECK(hw.clasificaciones == 1 && hw.dosis == 0);
+    hw.dist = -1;
+    hw.nivel = 12;                  // recarga parcial: por encima de vacío, debajo de alerta
+    correr(c, hw, 200000);
+    CHECK(c.alertaNivel() == Alerta::COMIDA_BAJA);
+    hw.respuestas.push_back(resp(CLASE_PERRO));
+    hw.dist = 20;
+    correr(c, hw, 3000);
+    CHECK(hw.dosis == 1);
+  }
+  {
+    prueba("Sensor de nivel sin lectura: aviso unico y la alimentacion NO se bloquea");
+    FakeHW hw;
+    Controlador c(hw, params());
+    c.iniciar();
+    hw.nivel = -1;
+    correr(c, hw, 400000);
+    int avisos = 0;
+    for (auto& a : hw.alertas) avisos += a == "SENSOR_NIVEL_SIN_LECTURA";
+    CHECK(avisos == 1);
+    hw.respuestas.push_back(resp(CLASE_GATO));
+    hw.dist = 20;
+    correr(c, hw, 3000);
+    CHECK(hw.dosis == 1);
+  }
+  {
+    prueba("PC no recibe la alerta: se reintenta cada 30 s hasta entregarla");
+    FakeHW hw;
+    Controlador c(hw, params());
+    c.iniciar();
+    hw.pcRecibe = false;
+    hw.nivel = 10;
+    correr(c, hw, 125000);          // 3 lecturas: alerta generada pero no entregada
+    CHECK(hw.alertas.empty() && c.alertaPendiente());
+    int antes = hw.intentosAlerta;
+    correr(c, hw, 61000);
+    CHECK(hw.intentosAlerta >= antes + 2);
+    hw.pcRecibe = true;
+    correr(c, hw, 31000);
+    CHECK(hw.alertas.size() == 1 && hw.alertas.back() == "COMIDA_BAJA" && !c.alertaPendiente());
+  }
+
+  {
+    prueba("Altura -> volumen: extremos, monotonía y embudo (20 % de altura ~ 4 % de volumen)");
+    CHECK(alturaAVolumenPct(-5) == 0.0f && alturaAVolumenPct(0) == 0.0f);
+    CHECK(alturaAVolumenPct(100) == 100.0f && alturaAVolumenPct(130) == 100.0f);
+    float previo = -1;
+    bool monotona = true;
+    for (float h = 0; h <= 100.0f; h += 0.5f) {
+      float v = alturaAVolumenPct(h);
+      monotona &= v >= previo && v <= h + 0.01f;   // embudo: nunca más volumen que altura
+      previo = v;
+    }
+    CHECK(monotona);
+    CHECK(alturaAVolumenPct(20) > 4.0f && alturaAVolumenPct(20) < 5.0f);
+    CHECK(alturaAVolumenPct(55) > 26.0f && alturaAVolumenPct(55) < 28.0f);   // interpolación 22 -> 32
   }
 
   printf(fallos ? "\nRESULTADO: %d FALLO(S)\n" : "\nRESULTADO: todas las pruebas OK\n", fallos);

@@ -62,13 +62,15 @@ def corte_x0(piezas, ruta, x=0.0):
     for (y0, z0), (y1, z1) in zip(camino[:-1], camino[1:]):
         ax.annotate("", xy=(y1, z1), xytext=(y0, z0),
                     arrowprops=dict(arrowstyle="->", color="#c0392b", lw=2))
-    notas = [((-10, 450), "07 Tolva"), ((10, 318), f"entrada en X = +{ix:.0f} mm\n(fuera de este corte)"),
+    notas = [((-60, 400), "07 Tolva"), ((40, 440), "13b sensor\nde nivel"),
+             ((-60, 431), f"línea MAX (z = {g.Z_MAX:.0f})"), ((10, 318), f"entrada en X = +{ix:.0f} mm\n(fuera de este corte)"),
              ((-10, 300), "08 Disco dosificador (MG995)"),
              ((-95, 230), "09 Conducto\n(tubo cerrado)"), ((-205, 120), "10 Salida"),
              ((-240, 55), "11 Comedero"), ((15, 160), "Bahía electrónica\n(seca, tras el tabique)"),
              ((15, 25), "01 Base: energía")]
     for (yy, zz), txt in notas:
         ax.text(yy, zz, txt, fontsize=9)
+    ax.plot([-62, 62], [g.Z_MAX, g.Z_MAX], ":", color="#555", linewidth=1.5)    # línea MAX de llenado
     ax.set_xlim(-260, 180)
     ax.set_ylim(-10, 560)
     ax.set_aspect("equal")

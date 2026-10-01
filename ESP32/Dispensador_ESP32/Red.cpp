@@ -99,6 +99,21 @@ RespuestaClasificacion Red::clasificar(int distanciaCm) {
   return r;
 }
 
+// POST http://PC:8000/alerta  {"tipo":"COMIDA_BAJA","nivel":18}
+bool Red::notificar(const char* tipo, float nivelPct) {
+  if (!conectado()) return false;
+  HTTPClient http;
+  http.setConnectTimeout(TIMEOUT_CONEXION_MS);
+  http.setTimeout(TIMEOUT_ESTADO_MS);
+  if (!http.begin(String(URL_PC) + "/alerta")) return false;
+  http.addHeader("Content-Type", "application/json");
+  char cuerpo[96];
+  snprintf(cuerpo, sizeof(cuerpo), "{\"tipo\":\"%s\",\"nivel\":%.0f}", tipo, nivelPct);
+  int codigo = http.POST(String(cuerpo));
+  http.end();
+  return codigo == 200;
+}
+
 void Red::iniciarServidorEstado(GeneradorEstado generador) {
   generador_ = generador;
 #ifdef SIMULACION_QEMU

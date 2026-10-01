@@ -56,3 +56,12 @@ FOTOS_POR_CLASIFICACION = _env("FOTOS_POR_CLASIFICACION", 2, int)
 # --- Registro -----------------------------------------------------------------
 GUARDAR_CAPTURAS = _env("GUARDAR_CAPTURAS", 1, int) == 1
 DIR_CAPTURAS = _env("DIR_CAPTURAS", str(BASE_DIR / "capturas"))
+
+# --- ESP32 y alertas ------------------------------------------------------------
+# IP del ESP32 controlador (el panel web del PC consulta su /status)
+ESP32_URL = _env("ESP32_URL", "http://192.168.1.52")
+# Notificación al celular con ntfy (opcional, requiere Internet en el PC):
+# instale la app "ntfy" en el celular, suscríbase a un tema con nombre difícil de
+# adivinar (p. ej. "dispensador-ana-7f3k9") y escriba ese nombre aquí.
+NTFY_TOPICO = _env("NTFY_TOPICO", "")
+NTFY_SERVIDOR = _env("NTFY_SERVIDOR", "https://ntfy.sh")

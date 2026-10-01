@@ -13,12 +13,12 @@ CAM = ../../ESP32_CAM/Camara_ESP32CAM
 pruebas: test_controlador
 	./test_controlador
 
-test_controlador: test_controlador.cpp $(FW)/Controlador.cpp $(FW)/Controlador.h
+test_controlador: test_controlador.cpp $(FW)/Controlador.cpp $(FW)/Controlador.h $(FW)/NivelGeometria.h
 	$(CXX) $(FLAGS) -O1 -o $@ test_controlador.cpp $(FW)/Controlador.cpp
 
 sintaxis:
 	@for v in 2 3; do \
-	  for f in $(FW)/Controlador.cpp $(FW)/Ultrasonico.cpp $(FW)/Energia.cpp $(FW)/Dosificador.cpp $(FW)/Red.cpp; do \
+	  for f in $(FW)/Controlador.cpp $(FW)/Ultrasonico.cpp $(FW)/Energia.cpp $(FW)/Dosificador.cpp $(FW)/Red.cpp $(FW)/NivelTolva.cpp; do \
 	    $(CXX) $(FLAGS) -fsyntax-only $(AJFLAGS) -DARDUINO=10819 -DESP_ARDUINO_VERSION_MAJOR=$$v -Istubs -I$(ARDUINOJSON) -I$(FW) $$f || exit 1; \
 	  done; \
 	  $(CXX) $(FLAGS) -fsyntax-only $(AJFLAGS) -DARDUINO=10819 -DESP_ARDUINO_VERSION_MAJOR=$$v -Istubs -I$(ARDUINOJSON) -I$(FW) -x c++ $(FW)/Dispensador_ESP32.ino || exit 1; \

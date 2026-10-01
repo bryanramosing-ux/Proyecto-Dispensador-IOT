@@ -19,6 +19,7 @@ sección "COMPONENTES". Mida sus unidades con calibre y ajuste antes de
 imprimir: hay clones con cotas distintas.
 """
 import math
+import re
 from pathlib import Path
 
 import numpy as np
@@ -56,7 +57,6 @@ HC_L, HC_A, HC_TRANSD_D, HC_TRANSD_SEP = 45.0, 20.0, 16.0, 26.0  # HC-SR04 (VERI
 CAM_L, CAM_A = 40.5, 27.0          # ESP32-CAM AI-Thinker
 PERF_X, PERF_Y, PERF_E = 90.0, 70.0, 1.6   # placa perforada 90x70 mm
 PANEL_W, PANEL_H, PANEL_E = 80.0, 80.0, 3.0  # MEDIR el panel real y ajustar
-PANEL_INCLINACION = 30.0           # grados respecto a la horizontal
 
 # =============================================================================
 # DOSIFICADOR (disco volumétrico)  -- geometría verificada en verificar()
@@ -506,7 +506,7 @@ def envolvente_mg995():
 #   08a carcasa (anillo exterior)      08b disco (gira con el MG995)
 #   08c placa superior (entrada)       08d placa base (salida + cámara del disco)
 # =============================================================================
-CONDUCTO_PANEL = (-56.0, 56.0)
+CONDUCTO_CABLES = (-56.0, 56.0)
 
 
 def p08a_carcasa():
@@ -519,12 +519,12 @@ def p08d_placa_base():
     p = prisma(contorno(T + CLR), z0, z_pl)
     camara = cil(*C_DISCO, z_pl - 0.01, Z_ASIENTO, R_CAMARA + 3) - cil(*C_DISCO, z_pl - 1, Z_ASIENTO + 1, R_CAMARA)
     collar = cil(*C_DISCO, z_pl - 0.01, z_pl + 3, 9)                 # laberinto anti-polvo
-    conducto = cil(*CONDUCTO_PANEL, z0, Z_TOLVA - 0.2, 6)
+    conducto = cil(*CONDUCTO_CABLES, z0, Z_TOLVA - 0.2, 6)
     p = union(p, camara, collar, conducto)
     ox, oy = polar(C_DISCO, R_BOLSILLO, ANG_SALIDA)
     p -= cil(ox, oy, z0 - 1, z_pl + 1, D_SALIDA / 2)                 # salida -> conducto
     p -= cil(*C_DISCO, z0 - 1, z_pl + 4, 7)                          # paso de la estría del servo
-    p -= cil(*CONDUCTO_PANEL, z0 - 1, Z_TOLVA + 1, 4)                # cable del panel (seco)
+    p -= cil(*CONDUCTO_CABLES, z0 - 1, Z_TOLVA + 1, 4)                # cable del sensor de nivel (seco)
     # asiento cónico (45°) de la placa superior: la centra y la sostiene
     p -= cil(*C_DISCO, Z_ASIENTO - 3.2, Z_ASIENTO + 0.01, R_CAMARA, R_CAMARA + 3.2, seg=128)
     for ang in (ANG_ENTRADA, ANG_CERRADO, ANG_SALIDA):               # marcas de calibración
@@ -580,6 +580,24 @@ def p08c_placa_superior():
 Z_CIL = Z_TOLVA + H_TOLVA - 38       # inicio de la parte cilíndrica
 R_TOLVA = 70.0
 Z_EMBUDO = Z_TOLVA + 4.0             # fondo del embudo (la boca apoya en la cama de impresión)
+ANG_LLAVE = 135.0                    # llave de la tapa: misma esquina que el conducto de cables
+
+# Sensor de nivel (HC-SR04 n.º 2) en la tapa, apuntando a la boca de la tolva
+E_TAPA = 5.0
+CAP_C = (32.0, 4.0)                  # centro de la cápsula (transductores en Y)
+Z_SENSOR = Z_TAPA - 26.0             # cara de los transductores (457)
+Z_MAX = Z_SENSOR - 30.0              # línea MAX de llenado: >= 2 cm del sensor (mínimo del HC-SR04)
+
+
+def embudo_interior(holgura=0.0):
+    ix, iy = polar(C_DISCO, R_BOLSILLO, ANG_ENTRADA)
+    return Manifold.batch_hull([cil(0, 0, Z_CIL, Z_CIL + 0.01, R_TOLVA + holgura),
+                                cil(ix, iy, Z_EMBUDO - 0.01, Z_EMBUDO, D_ENTRADA / 2 + holgura)])
+
+
+def caja_rotada(r0, r1, ancho, z0, z1, ang):
+    """Bloque radial (de r0 a r1) centrado en el ángulo 'ang'."""
+    return caja(r0, r1, -ancho / 2, ancho / 2, z0, z1).rotate([0, 0, ang])
 
 
 def p07_tolva():
@@ -587,55 +605,146 @@ def p07_tolva():
     ix, iy = polar(C_DISCO, R_BOLSILLO, ANG_ENTRADA)
     emb_ext = Manifold.batch_hull([cil(0, 0, Z_CIL, Z_CIL + 0.01, R_TOLVA + 2.5),
                                    cil(ix, iy, Z_EMBUDO, Z_EMBUDO + 0.01, D_ENTRADA / 2 + 2.5)])
-    emb_int = Manifold.batch_hull([cil(0, 0, Z_CIL, Z_CIL + 0.01, R_TOLVA),
-                                   cil(ix, iy, Z_EMBUDO - 0.01, Z_EMBUDO, D_ENTRADA / 2)])
     cilindro = cil(0, 0, Z_CIL, z1, R_TOLVA + 2.5)
     boca = cil(ix, iy, z0, Z_EMBUDO + 0.5, D_ENTRADA / 2 + 2.0)       # entra en el zócalo de 08c
     anillo_sup = prisma(contorno(T - 0.01), z1 - 4, z1) - cil(0, 0, z1 - 5, z1 + 1, R_TOLVA)
-    conducto = cil(*CONDUCTO_PANEL, z0, z1, 6)
-    tetones = [teton(sx * 30 - 5, sx * 30 + 5, R_INT - 6, R_INT + 0.5, 445, 469, "+y") for sx in (-1, 1)]
-    t = union(carcasa(z0, z1), emb_ext, cilindro, boca, anillo_sup, conducto, *tetones)
-    t -= union(emb_int, cil(0, 0, Z_CIL, z1 + 1, R_TOLVA), cil(ix, iy, z0 - 1, Z_EMBUDO + 0.5, D_ENTRADA / 2))
-    t -= cil(*CONDUCTO_PANEL, z0 - 1, z1 + 1, 4)
-    for sx in (-1, 1):
-        for z in (451, 463):
-            t -= cil_eje((sx * 30, R_INT - 2, z), "y", 14, 1.25)
+    conducto = cil(*CONDUCTO_CABLES, z0, z1, 6)
+    t = union(carcasa(z0, z1), emb_ext, cilindro, boca, anillo_sup, conducto)
+    t -= union(embudo_interior(), cil(0, 0, Z_CIL, z1 + 1, R_TOLVA), cil(ix, iy, z0 - 1, Z_EMBUDO + 0.5, D_ENTRADA / 2))
+    t -= cil(*CONDUCTO_CABLES, z0 - 1, z1 + 1, 4)
+    # ranura de la llave de la tapa (una sola posición posible)
+    t -= caja_rotada(R_TOLVA - 0.5, R_TOLVA + 1.8, 6.0, z1 - 8.5, z1 + 1, ANG_LLAVE)
+    # línea MAX de llenado: surco de 0,6 mm en la cara interior del embudo
+    surco = embudo_interior(0.6) ^ caja(-100, 100, -100, 100, Z_MAX - 0.5, Z_MAX + 0.5)
+    t -= surco
     return t - agujeros_junta(z0)
 
 
 # =============================================================================
-# 13 TAPA SUPERIOR (con dos muescas para los dedos)
+# 13a TAPA SUPERIOR  ·  13b CÁPSULA del sensor de nivel  ·  13c tapa de la cápsula
+#   La cápsula es una pieza aparte (se imprime con el piso sobre la cama, sin
+#   puentes) que cuelga de la tapa por un ala a 45° encajada en un avellanado.
+#   El alimento solo "ve" los dos transductores; la placa queda en seco.
 # =============================================================================
-def p13_tapa():
-    z0 = Z_TAPA
-    t = cil(0, 0, z0, z0 + 3.5, R_TOLVA + 3, seg=128)
+CAP_IN = (CAP_C[0] - 30, CAP_C[0] + 12, CAP_C[1] - 26, CAP_C[1] + 26)  # interior x0,x1,y0,y1
+CAP_PARED, CAP_ALA = 2.0, 4.0          # pared y vuelo del ala (a 45°)
+HC_SOBRE_PISO = 10.0                   # nervios: la cara de las cápsulas queda al ras del piso
+AG_TAPA_CAPSULA = [(CAP_C[0] - 9, CAP_C[1] + 26 + CAP_PARED + CAP_ALA + 3.5),
+                   (CAP_C[0] - 9, CAP_C[1] - 26 - CAP_PARED - CAP_ALA - 3.5)]
+SALIDA_CABLE_Y = CAP_C[1] + 20         # muesca del cable en la pared -x de la cápsula
+
+
+def _rect(lim, d, z0, z1):
+    x0, x1, y0, y1 = lim
+    return caja(x0 - d, x1 + d, y0 - d, y1 + d, z0, z1)
+
+
+def capsula_exterior(holgura=0.0):
+    """Paredes + ala troncopiramidal a 45° (la misma forma recorta la tapa)."""
+    zt = Z_TAPA + E_TAPA
+    d = CAP_PARED + holgura
+    cuerpo = _rect(CAP_IN, d, Z_SENSOR - holgura, zt)
+    ala = Manifold.batch_hull([_rect(CAP_IN, d, zt - CAP_ALA, zt - CAP_ALA + 0.01),
+                               _rect(CAP_IN, d + CAP_ALA, zt - 0.01, zt + holgura)])
+    return cuerpo + ala
+
+
+def p13a_tapa():
+    z0, zt = Z_TAPA, Z_TAPA + E_TAPA
+    t = cil(0, 0, z0, zt, R_TOLVA + 3, seg=128)
     t += cil(0, 0, z0 - 8, z0 + 0.01, R_TOLVA - 0.4, seg=128) - cil(0, 0, z0 - 9, z0, R_TOLVA - 2.4, seg=128)
-    for sy in (-1, 1):
-        t -= cil(0, sy * (R_TOLVA + 3), z0 - 1, z0 + 5, 9)
-    return t
+    t += caja_rotada(R_TOLVA - 0.6, R_TOLVA + 1.4, 5.0, z0 - 7, z0 + 0.01, ANG_LLAVE)     # llave
+    for x, y in AG_TAPA_CAPSULA:                                           # tetones de los tornillos de 13c
+        t += cil(x, y, z0 - 8, z0 + 0.01, 4.0, seg=32)
+    for sy in (-1, 1):                                                     # muescas para los dedos
+        t -= cil(0, sy * (R_TOLVA + 3), z0 - 1, zt + 1, 9)
+    t -= capsula_exterior(CLR) + _rect(CAP_IN, CAP_PARED + CLR, z0 - 10, zt)   # avellanado + abertura
+    for x, y in AG_TAPA_CAPSULA:
+        t -= cil(x, y, z0 - 9, zt + 1, 1.25, seg=24)                       # rosca en plástico (M3)
+    # ranura del cable sobre la tapa: de la cápsula al borde, hacia el conducto de la esquina
+    x_ala = CAP_IN[0] - CAP_PARED - CAP_ALA
+    ex, ey = polar((0, 0), R_TOLVA + 4, ANG_LLAVE)
+    ranura = Manifold.batch_hull([cil(x_ala, SALIDA_CABLE_Y, zt - 3.5, zt + 1, 2.6, seg=24),
+                                  cil(ex, ey, zt - 3.5, zt + 1, 2.6, seg=24)])
+    return t - ranura
+
+
+def p13b_capsula():
+    zs, zt = Z_SENSOR, Z_TAPA + E_TAPA
+    cx, cy = CAP_C
+    c = capsula_exterior() - _rect(CAP_IN, 0, zs + CAP_PARED, zt + 1)
+    for s in (-1, 1):
+        c -= cil(cx, cy + s * HC_TRANSD_SEP / 2, zs - 1, zs + CAP_PARED + 1, HC_TRANSD_D / 2 + 0.4)
+        # nervios bajo los bordes largos de la placa (fuera de los transductores)
+        x0, x1 = sorted([cx + s * (HC_A / 2 - 1.2), cx + s * (HC_A / 2 + 0.3)])
+        c += caja(x0, x1, cy - HC_L / 2 + 1, cy + HC_L / 2 - 1, zs + CAP_PARED - 0.01, zs + CAP_PARED + HC_SOBRE_PISO)
+    # muesca de salida del cable (pared -x, junto a la ranura de la tapa)
+    x_ala = CAP_IN[0] - CAP_PARED - CAP_ALA
+    c -= caja(x_ala - 1, CAP_IN[0] + 0.5, SALIDA_CABLE_Y - 2.6, SALIDA_CABLE_Y + 2.6, zt - 4.5, zt + 1)
+    return c
+
+
+def p13c_tapa_capsula():
+    zt = Z_TAPA + E_TAPA
+    x0, x1, y0, y1 = CAP_IN
+    m = CAP_PARED + CAP_ALA
+    c = caja(x0 - m - 2, x1 + m + 2, y0 - m - 7, y1 + m + 7, zt + 0.1, zt + 2.6)
+    for x, y in AG_TAPA_CAPSULA:
+        c -= cil(x, y, zt - 1, zt + 4, 1.7, seg=24)
+    return c
 
 
 # =============================================================================
-# 12 SOPORTE DEL PANEL SOLAR (perfil extruido: se imprime acostado, sin soportes)
+# 12 ESTACIÓN SOLAR REMOTA (recomendación del profesor: el panel va aparte, donde
+# haya sol, unido a la torre por un cable con conector GX12). 12a base con
+# horquilla, 12b bandeja del panel. La bandeja gira sobre dos tornillos M4 que
+# roscan en tuercas alojadas en sus nudillos; al apretarlos queda fija.
 # =============================================================================
-def p12_soporte_panel():
-    ang = math.radians(PANEL_INCLINACION)
-    ancho = PANEL_W + 10
-    y0 = W / 2
-    largo = PANEL_H + 10
-    p_ini = (y0 + 4, Z_TAPA + 14)
-    p_fin = (p_ini[0] + largo * math.cos(ang), p_ini[1] - largo * math.sin(ang))
-    perfil = [(y0 + 0.1, 440.0), (y0 + 4, 440.0), (y0 + 4, p_ini[1] - 10),
-              (p_fin[0] - 6 * math.sin(ang), p_fin[1] - 6 * math.cos(ang)),
-              (p_fin[0], p_fin[1]), (p_ini[0], p_ini[1]), (y0 + 0.1, Z_TAPA + 14)]
-    s = CrossSection([perfil]).extrude(ancho).rotate([90, 0, 90]).translate([-ancho / 2, 0, 0])
-    for sx in (-1, 1):
-        for z in (451, 463):
-            s -= cil_eje((sx * 30, y0 + 2, z), "y", 10, 1.7)
-    mid = ((p_ini[0] + p_fin[0]) / 2, (p_ini[1] + p_fin[1]) / 2)
-    pocket = caja(-PANEL_W / 2 - 0.5, PANEL_W / 2 + 0.5, -PANEL_H / 2 - 0.5, PANEL_H / 2 + 0.5, -1.5, 5)
-    s -= pocket.rotate([-PANEL_INCLINACION, 0, 0]).translate([0, mid[0], mid[1]])
-    return s - cil_eje((0, mid[0] - 10, mid[1] - 2), "z", 30, 3.5)   # paso del cable
+E_BANDEJA = 5.0
+BANDEJA_W, BANDEJA_H = PANEL_W + 8, PANEL_H + 8
+NUDILLO_R, NUDILLO_E = 7.0, 8.0      # nudillos de la bandeja: eje a 7 mm de su cara inferior
+OREJA_E = 5.0                        # espesor de las orejas de la horquilla
+Z_PIVOTE = 60.0                      # altura del eje de giro sobre el suelo
+X_OREJA = BANDEJA_W / 2 + NUDILLO_E + 0.5   # cara interior de las orejas
+ANGULOS_PANEL = (0, 15, 30, 45, 60, 75)
+
+
+def p12a_estacion_base():
+    b = caja(-65, 65, -55, 55, 0, 6)
+    for s in (-1, 1):
+        x0, x1 = sorted([s * X_OREJA, s * (X_OREJA + OREJA_E)])
+        xm = (x0 + x1) / 2
+        oreja = caja(x0, x1, -10, 10, 5.9, Z_PIVOTE) + cil_eje((xm, 0, Z_PIVOTE), "x", OREJA_E, 10)
+        cartela = Manifold.batch_hull([caja(x0, x1, -22, 22, 5.9, 6.0), caja(x0, x1, -10, 10, 5.9, 32)])
+        b += oreja + cartela
+        b -= cil_eje((xm, 0, Z_PIVOTE), "x", OREJA_E + 2, 2.2)              # M4 pasante
+    for x in (-55, 55):                                                    # fijación al suelo/muro
+        for y in (-45, 45):
+            b -= cil(x, y, -1, 7, 2.3, seg=24)
+    b -= caja(-30, 30, 22, 42, 2, 7)                                       # alojamiento de lastre
+    for x in (-6, 6):                                                      # brida del cable: dos ranuras
+        b -= caja(x - 1.6, x + 1.6, -49.5, -44.5, -1, 7)
+    b -= caja(-8, 8, -49.5, -44.5, -1, 2.5)                                # túnel inferior de la brida
+    return b
+
+
+def p12b_estacion_bandeja(angulo=0.0):
+    t = caja(-BANDEJA_W / 2, BANDEJA_W / 2, -BANDEJA_H / 2, BANDEJA_H / 2, 0, E_BANDEJA)
+    t -= caja(-PANEL_W / 2 - 0.5, PANEL_W / 2 + 0.5, -PANEL_H / 2 - 0.5, PANEL_H / 2 + 0.5,
+              E_BANDEJA - PANEL_E + 0.5, E_BANDEJA + 1)                    # alojamiento del panel
+    t -= caja(-25, 25, -25, 25, -1, E_BANDEJA)                             # ventana: soldaduras y cable
+    for s in (-1, 1):
+        x0, x1 = sorted([s * (BANDEJA_W / 2 - 0.01), s * (BANDEJA_W / 2 + NUDILLO_E)])
+        nudillo = Manifold.batch_hull([cil_eje(((x0 + x1) / 2, 0, NUDILLO_R), "x", x1 - x0, NUDILLO_R),
+                                       caja(x0, x1, -NUDILLO_R, NUDILLO_R, 0, 0.01)])
+        nudillo -= cil_eje(((x0 + x1) / 2, 0, NUDILLO_R), "x", NUDILLO_E + 2, 2.2)
+        # tuerca M4 alojada en la cara exterior (hexágono con vértice arriba: sin puente)
+        hexa = Manifold.cylinder(4.4, 7.3 / math.sqrt(3), 7.3 / math.sqrt(3), 6).rotate([0, 90, 0])
+        xe = x1 if s > 0 else x0
+        hexa = hexa.translate([xe - 3.4, 0, NUDILLO_R]) if s > 0 else hexa.rotate([0, 0, 180]).translate([xe + 3.4, 0, NUDILLO_R])
+        t += nudillo - hexa
+    # en el ensamblaje (solo para verificar) la bandeja gira 'angulo' alrededor del eje
+    return t.translate([0, 0, -NUDILLO_R]).rotate([angulo, 0, 0]).translate([0, 0, Z_PIVOTE])
 
 
 # =============================================================================
@@ -669,6 +778,7 @@ def p16_cajon_energia():
     c -= caja(-9.6, 9.6, W / 2 - 1, W / 2 + 5, 28, 41)        # interruptor basculante (VERIFICAR)
     c -= caja(-35 - 6, -35 + 6, W / 2 - 1, W / 2 + 5, 19, 25)  # USB-C del cargador (ajustar)
     c -= cil_eje((35, W / 2 + 1.7, 38), "y", 8, 4)            # portafusible/LED (opcional)
+    c -= cil_eje((-35, W / 2 + 1.7, 36), "y", 8, 6.1)         # conector GX12 del panel solar remoto
     c -= ranuras("y", W / 2 + 1.7, np.arange(15, 46, 6), 17, 31, ancho=2.5)
     for sx in (-1, 1):
         c -= cil_eje((sx * 50.5, W / 2 + 1.7, 22), "y", 8, 1.7)
@@ -733,18 +843,26 @@ PIEZAS = [
     ("08b_Disco_Dosificador", p08b_disco, [180, 0, 0]),
     ("08c_Placa_Superior_Dosificador", p08c_placa_superior, None),
     ("08d_Placa_Base_Dosificador", p08d_placa_base, None),
-    ("09_Conducto_Alimento", p09_conducto, [-90, 0, 45]),   # en diagonal: 221 mm
+    ("09_Conducto_Alimento", p09_conducto, [-90, 0, 0]),
     ("10_Salida_Alimento", p10_salida, [-45, 0, 0]),
     ("11_Comedero", p11_comedero, None),
-    ("12_Soporte_Panel_Solar", p12_soporte_panel, [0, 90, 0]),
-    ("13_Tapa_Superior", p13_tapa, [180, 0, 0]),
+    ("12a_Estacion_Solar_Base", p12a_estacion_base, None),
+    ("12b_Estacion_Solar_Bandeja", p12b_estacion_bandeja, None),
+    ("13a_Tapa_Superior_Tolva", p13a_tapa, [180, 0, 0]),
+    ("13b_Capsula_Sensor_Nivel", p13b_capsula, None),
+    ("13c_Tapa_Capsula_Sensor", p13c_tapa_capsula, None),
     ("14_Tapa_Lateral_Servicio", p14_tapa_servicio, [-90, 0, 0]),
     ("15_Separadores", p15_separadores, None),
     ("16_Soporte_Estructural_Cajon_Energia", p16_cajon_energia, None),
 ]
 
-VOLUMEN_IMPRESORA = (220.0, 220.0, 250.0)
-SUELTAS = {"15_Separadores"}   # juego de piezas sueltas: no tiene posición de ensamblaje
+# Impresora del proyecto: Elegoo Neptune 4 Plus, volumen 320 x 320 x 385 mm (especificación
+# del fabricante). Se deja un margen de 5 mm por lado para falda/borde (skirt/brim).
+IMPRESORA = "Elegoo Neptune 4 Plus"
+VOLUMEN_NOMINAL = (320.0, 320.0, 385.0)
+VOLUMEN_IMPRESORA = (310.0, 310.0, 380.0)
+# Piezas sin posición en la torre: juego de separadores y la estación solar (va aparte)
+SUELTAS = {"15_Separadores", "12a_Estacion_Solar_Base", "12b_Estacion_Solar_Bandeja"}
 
 
 def construir():
@@ -861,6 +979,57 @@ def verificar(piezas):
     alcance = R_TOLVA + math.hypot(ix, iy) - D_ENTRADA / 2
     ang = math.degrees(math.atan2(Z_CIL - Z_EMBUDO, alcance))
     chk(ang >= 55 - 0.5, f"Pared más tendida de la tolva: {ang:.1f}° (>= 55° recomendado para croquetas)")
+
+    # 7) Sensor de nivel: alcance mínimo, cápsula fuera del alimento, capacidad y umbrales
+    interior = union(embudo_interior(), cil(0, 0, Z_CIL, Z_TAPA, R_TOLVA),
+                     cil(ix, iy, Z_TOLVA - 1, Z_EMBUDO + 0.01, D_ENTRADA / 2))
+
+    def vol_hasta(h):
+        return (interior ^ caja(-100, 100, -100, 100, Z_TOLVA - 2, h)).volume() / 1000
+
+    v_max = vol_hasta(Z_MAX)
+    chk(Z_SENSOR - Z_MAX >= 20, f"Línea MAX a {Z_SENSOR - Z_MAX:.0f} mm de los transductores (mínimo del "
+        f"HC-SR04: 20 mm); capacidad hasta MAX ≈ {v_max:.0f} cm3 (gramos = cm3 x densidad aparente: MEDIR)")
+    # la tabla altura -> volumen del firmware (NivelGeometria.h) debe coincidir con esta tolva
+    v0 = vol_hasta(Z_EMBUDO)
+    tabla = [100 * (vol_hasta(Z_EMBUDO + k / 10 * (Z_MAX - Z_EMBUDO)) - v0) / (v_max - v0) for k in range(11)]
+    fw_dir = Path(__file__).resolve().parents[1] / "ESP32/Dispensador_ESP32"
+    fw = [float(v) for v in re.findall(r"([\d.]+)f", (fw_dir / "NivelGeometria.h").read_text().split("{", 1)[1].split("}", 1)[0])]
+    dif = max(abs(a - b) for a, b in zip(tabla, fw)) if len(fw) == 11 else 99
+    chk(dif < 0.6, f"NivelGeometria.h coincide con la tolva (dif. máx. {dif:.2f} %)" + ("" if dif < 0.6 else
+        " -> copie: {" + ", ".join(f"{v:.1f}f" for v in tabla) + "}"))
+    # umbrales del firmware (porcentaje de VOLUMEN): a qué altura y cuánto alimento corresponden
+    cfg = (fw_dir / "config.h").read_text()
+    bolsillo = math.pi * (D_BOLSILLO / 2) ** 2 * E_DISCO / 1000
+    for nombre in ("NIVEL_REARME_PCT", "NIVEL_ALERTA_PCT", "NIVEL_VACIO_PCT"):
+        pct = float(re.search(nombre + r"\s+([\d.]+)", cfg).group(1))
+        k = next(i for i in range(10) if tabla[i + 1] >= pct)
+        h = (k + (pct - tabla[k]) / (tabla[k + 1] - tabla[k])) / 10 * (Z_MAX - Z_EMBUDO)
+        v = pct / 100 * (v_max - v0)
+        chk(True, f"{nombre} = {pct:.0f} % del volumen ≈ {v:3.0f} cm3 (≈{v / bolsillo:4.1f} bolsillos del disco): "
+            f"superficie a {h:3.0f} mm sobre la boca")
+    chk(HC_A + 18 <= CAP_IN[1] - CAP_IN[0] and HC_L + 4 <= CAP_IN[3] - CAP_IN[2],
+        f"Cápsula {CAP_IN[1] - CAP_IN[0]:.0f}x{CAP_IN[3] - CAP_IN[2]:.0f} mm: HC-SR04 {HC_L:.0f}x{HC_A:.0f} + 18 mm de pines/cable")
+    chk(interferencia(piezas["13b_Capsula_Sensor_Nivel"], interior ^ caja(-100, 100, -100, 100, 0, Z_MAX)) < 0.01,
+        "La cápsula del sensor queda por encima de la línea MAX (nunca toca el alimento)")
+
+    # 8) Estación solar remota: la bandeja gira de 0° a 75° sin tocar la base
+    base = p12a_estacion_base()
+    peor = max(interferencia(base, p12b_estacion_bandeja(a)) for a in ANGULOS_PANEL)
+    chk(peor < 1.0, f"Bandeja del panel libre en {', '.join(str(a) for a in ANGULOS_PANEL)}° ({peor:.2f} mm3)")
+    alto = min(p12b_estacion_bandeja(a).bounding_box()[2] for a in ANGULOS_PANEL)
+    chk(alto > 6.5, f"Bandeja siempre sobre la placa base (punto más bajo z = {alto:.1f} mm a 75°)")
+
+    # 9) Impresora
+    fuera = []
+    for nombre, _, rot in PIEZAS:
+        x0, y0, z0, x1, y1, z1 = orientar(piezas[nombre], rot).bounding_box()
+        if any(d > lim for d, lim in zip((x1 - x0, y1 - y0, z1 - z0), VOLUMEN_IMPRESORA)):
+            fuera.append(nombre)
+    chk(not fuera, f"Las {len(PIEZAS)} piezas caben en la {IMPRESORA} "
+        f"({VOLUMEN_NOMINAL[0]:.0f}x{VOLUMEN_NOMINAL[1]:.0f}x{VOLUMEN_NOMINAL[2]:.0f} mm; se usa "
+        f"{VOLUMEN_IMPRESORA[0]:.0f}x{VOLUMEN_IMPRESORA[1]:.0f}x{VOLUMEN_IMPRESORA[2]:.0f} con margen)"
+        + (f" FUERA: {fuera}" if fuera else ""))
     return r
 
 

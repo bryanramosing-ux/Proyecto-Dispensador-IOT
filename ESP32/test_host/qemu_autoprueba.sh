@@ -49,7 +49,7 @@ prohibir() {
 echo "---------------- verificación ----------------"
 esperar "=== Dispensador IoT - ESP32 controlador ==="
 esperar "[ESPERANDO] -> [ERROR_WIFI] : sin Wi-Fi al iniciar"
-esperar "DIST | SERVO <us> | CICLO <n>"
+esperar "DIST | NIVEL [VACIO|LLENO] | SERVO <us>"
 esperar '"estado":"ERROR_WIFI"'
 esperar "Distancia: -1.0 cm"
 esperar "Bateria 7.60 V | Servo 6.00 V"
@@ -57,6 +57,8 @@ esperar "Servo -> 1200 us OK"
 esperar "Rango permitido 500..2500 us"
 esperar "CICLO x1 -> OK"
 esperar "motivo=SIN_WIFI (NO se dispensa)"
+esperar "Nivel tolva: sin lectura"
+esperar '"nivel_tolva":'
 esperar "[ERROR_WIFI] -> [ESPERANDO] : errores borrados manualmente"
 esperar "AUTOPRUEBA_FIN"
 prohibir "Guru Meditation"

@@ -18,6 +18,9 @@
 #define PIN_VPANEL    33  // ADC1_CH5: tensión del panel solar por divisor 100k/100k
 #define PIN_LED        2  // LED azul de la placa (indicador de estado)
 #define PIN_BOTON      0  // Botón BOOT de la placa: pulsación larga = borrar error
+#define PIN_TRIG_NIVEL 19 // Salida -> TRIG del HC-SR04 de la TOLVA (sin función de arranque)
+#define PIN_ECHO_NIVEL 21 // ECHO del HC-SR04 de la tolva por divisor 1k/2k (~3,3 V)
+// (19 y 21 están en la otra fila de pines del DevKit, junto al conector J5: cableado corto)
 // Se usan solo canales ADC1 porque ADC2 no funciona mientras el Wi-Fi está activo.
 
 // Factores de los divisores: (R_superior + R_inferior) / R_inferior
@@ -119,6 +122,25 @@
 #define VSERVO_CAIDA        4.2f   // PROVISIONAL: caída sostenida durante el giro -> posible atasco
 #define T_CAIDA_MS          250    // PROVISIONAL: duración mínima de la caída
 #define REINTENTOS_ATASCO     2    // retrocesos antes de declarar ERROR_MECANISMO
+
+// -----------------------------------------------------------------------------
+// 8. NIVEL DE ALIMENTO EN LA TOLVA (segundo HC-SR04, montado en la tapa)
+//    Recomendación del profesor: avisar cuando la comida se está acabando.
+// -----------------------------------------------------------------------------
+#define USAR_SENSOR_NIVEL        1
+#define INTERVALO_NIVEL_MS   60000UL   // una medición por minuto (y tras cada ración)
+// Los porcentajes son de VOLUMEN restante (no de altura): ver NivelGeometria.h.
+// Con la tolva del modelo 3D (≈ 630 cm3 hasta la línea MAX): 20 % ≈ 125 cm3.
+#define NIVEL_ALERTA_PCT      20.0f    // PROVISIONAL: por debajo -> alerta COMIDA_BAJA
+#define NIVEL_REARME_PCT      30.0f    // por encima -> COMIDA_REPUESTA (histéresis)
+#define NIVEL_VACIO_PCT        3.0f    // PROVISIONAL: por debajo -> COMIDA_AGOTADA, no dispensa
+#define LECTURAS_NIVEL            3    // lecturas seguidas para confirmar un cambio
+#define REINTENTO_ALERTA_MS  30000UL   // si el PC no recibió la alerta, se reenvía
+#define N_MUESTRAS_NIVEL          5    // mediana de 5 disparos
+// Distancias por defecto (sensor -> superficie). Se CALIBRAN con los comandos serie
+// "NIVEL VACIO" y "NIVEL LLENO" y quedan guardadas en la memoria flash (NVS).
+#define DIST_TOLVA_VACIA_CM   16.0f    // PROVISIONAL: tolva vacía (medida en el modelo 3D)
+#define DIST_TOLVA_LLENA_CM    3.0f    // PROVISIONAL: alimento en la marca MAX
 
 #define T_BOTON_RESET_MS   2000UL  // pulsación larga del botón BOOT
 #define INTERVALO_CICLO_MS   50UL  // periodo del lazo principal

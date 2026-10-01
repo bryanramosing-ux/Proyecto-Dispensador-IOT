@@ -1,7 +1,8 @@
 # Verificación automática del proyecto en cada push / pull request.
 #   * vision:     pruebas de Python + modelo real con imágenes públicas
-#   * mecanica:   genera los STL y ejecuta las 34 verificaciones geométricas
-#   * logica:     máquina de estados del ESP32 en PC + compilación con stubs
+#   * mecanica:   genera los STL y ejecuta las 45 verificaciones geométricas (incluye sensor de nivel,
+#                 estación solar remota y volumen de la Elegoo Neptune 4 Plus) + plan de placas
+#   * logica:     máquina de estados del ESP32 en PC + placa y esquema coherentes con config.h + stubs
 #   * firmware:   compilación REAL (cadena de Espressif) con núcleo 2.0.17 y 3.0.7
 #   * qemu:       arranca el firmware real del ESP32 en el emulador de Espressif
 name: Verificación
@@ -42,9 +43,11 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - run: pip install numpy trimesh manifold3d
-      - name: Generar STL y verificar (interferencias, recorrido del alimento, imprimibilidad)
+      - run: pip install numpy trimesh manifold3d matplotlib
+      - name: Generar STL y verificar (interferencias, recorrido del alimento, imprimibilidad, nivel, estación solar)
         run: python Mechanical/generar_stl.py
+      - name: Placas de impresión para la Neptune 4 Plus (sin laminar)
+        run: cd Mechanical && python plan_impresion.py --sin-laminar
       - name: Balance energético
         run: python Documentation/power/calculo_energia.py
 
@@ -52,10 +55,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Máquina de estados (19 escenarios)
+      - name: Máquina de estados (24 escenarios, incluye alertas de nivel de la tolva)
         run: make -C ESP32/test_host
-      - name: Placa de control coherente con config.h (pines, divisor, conexiones)
+      - name: Placa de control coherente con config.h (pines, divisores, conexiones)
         run: python3 Documentation/wiring/generar_placa_control.py
+      - name: Esquema completo coherente con config.h
+        run: python3 Documentation/wiring/generar_esquema.py
       - name: Compilación contra stubs (API núcleo 2.x y 3.x)
         run: |
           git clone --depth 1 https://github.com/bblanchon/ArduinoJson ESP32/test_host/ArduinoJson

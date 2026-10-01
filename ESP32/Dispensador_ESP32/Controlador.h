@@ -39,6 +39,10 @@ struct RespuestaClasificacion {
 
 enum class ResultadoDosis : uint8_t { OK, SIN_ALIMENTACION_SERVO, ATASCO };
 
+// Alertas que el ESP32 envía al PC (POST /alerta) sobre el nivel de la tolva
+enum class Alerta : uint8_t { NINGUNA, COMIDA_BAJA, COMIDA_AGOTADA, COMIDA_REPUESTA, SENSOR_NIVEL_SIN_LECTURA };
+const char* nombreAlerta(Alerta a);
+
 // Todo lo que el controlador necesita del mundo físico / la red.
 class Hardware {
  public:
@@ -53,6 +57,8 @@ class Hardware {
   virtual float voltajeBateria() = 0;
   virtual float voltajeServo() = 0;
   virtual ResultadoDosis dosificar(uint8_t ciclos) = 0;
+  virtual float nivelTolvaPct() = 0;          // 0-100 %; < 0 si no hay lectura válida
+  virtual bool notificar(Alerta a, float nivelPct) = 0;  // true si el PC la recibió
   virtual bool botonResetPulsado() = 0;       // pulsación larga ya filtrada
   virtual void reiniciar() = 0;
   virtual void log(const char* mensaje) = 0;
@@ -75,6 +81,12 @@ struct Parametros {
   bool usarMonitorServo;
   float vservoMin;
   uint32_t wifiReintentoMs, wifiReinicioMs, errorReintentoMs;
+  // Nivel de la tolva (HC-SR04 en la tapa)
+  bool usarSensorNivel;
+  uint32_t intervaloNivelMs;
+  float nivelAlertaPct, nivelRearmePct, nivelVacioPct;
+  uint8_t lecturasNivel;          // lecturas seguidas para confirmar un cambio
+  uint32_t reintentoAlertaMs;     // reenvío si el PC no recibió la alerta
 };
 
 class Controlador {
@@ -94,6 +106,9 @@ class Controlador {
   uint32_t racionesTotales(int clase) const { return clase >= 1 && clase <= 2 ? totales_[clase] : 0; }
   uint8_t racionesUltimas24h(int clase) const;
   uint32_t cooldownRestanteMs() const;
+  float nivelTolva() const { return nivelPct_; }
+  Alerta alertaNivel() const { return alertaNivel_; }
+  bool alertaPendiente() const { return pendiente_ != Alerta::NINGUNA; }
 
  private:
   void cambiarA(Estado nuevo, const char* motivo = nullptr);
@@ -103,6 +118,8 @@ class Controlador {
   bool racionPermitida(int clase, char* porque, int n);
   void volverAEsperar(const char* motivo);
   void logf(const char* fmt, ...);
+  void vigilarNivel(uint32_t ahora);
+  void emitir(Alerta a);
 
   Hardware& hw_;
   Parametros p_;
@@ -131,4 +148,14 @@ class Controlador {
   uint8_t nRegistro_[3] = {0, 0, 0};
   uint8_t posRegistro_[3] = {0, 0, 0};
   uint32_t totales_[3] = {0, 0, 0};
+
+  // Nivel de la tolva
+  float nivelPct_ = -1.0f;
+  bool nivelMedido_ = false;
+  uint32_t tNivel_ = 0;
+  uint8_t bajas_ = 0, altas_ = 0, vacias_ = 0, noVacias_ = 0, invalidas_ = 0;
+  Alerta alertaNivel_ = Alerta::NINGUNA;   // COMIDA_BAJA / COMIDA_AGOTADA activas
+  bool avisoSinLectura_ = false;
+  Alerta pendiente_ = Alerta::NINGUNA;      // última alerta no entregada
+  uint32_t tPendiente_ = 0;
 };

@@ -5,6 +5,8 @@
 // =============================================================================
 //  Responsabilidades del ESP32:
 //    * Leer el HC-SR04 y confirmar la presencia de una mascota.
+//    * Medir el nivel de la tolva (segundo HC-SR04) y avisar al PC cuando la
+//      comida se está acabando.
 //    * Pedir la clasificación al PC (que a su vez pide la foto a la ESP32-CAM).
 //    * DECIDIR si corresponde dispensar (clase válida, cooldown, límite diario,
 //      batería y riel del servo correctos, mascota todavía presente).
@@ -20,6 +22,8 @@
 #include "Controlador.h"
 #include "Dosificador.h"
 #include "Energia.h"
+#include "NivelGeometria.h"
+#include "NivelTolva.h"
 #include "Red.h"
 #include "Ultrasonico.h"
 #include "config.h"
@@ -36,6 +40,7 @@
 // ----------------------------------------------------------------------------
 Energia energia;
 Ultrasonico ultrasonico(PIN_TRIG, PIN_ECHO, N_MUESTRAS_DIST, TIMEOUT_ECO_US);
+NivelTolva nivel(PIN_TRIG_NIVEL, PIN_ECHO_NIVEL);
 Dosificador dosificador(PIN_SERVO, energia, USAR_MONITOR_SERVO);
 Red red;
 
@@ -51,6 +56,8 @@ class HardwareReal : public Hardware {
   RespuestaClasificacion clasificar(int d) override { return red.clasificar(d); }
   float voltajeBateria() override { return energia.bateria(); }
   float voltajeServo() override { return energia.servo(); }
+  float nivelTolvaPct() override { return USAR_SENSOR_NIVEL ? nivel.porcentaje() : -1.0f; }
+  bool notificar(Alerta a, float n) override { return red.notificar(nombreAlerta(a), n); }
   ResultadoDosis dosificar(uint8_t ciclos) override {
     digitalWrite(PIN_LED, HIGH);
     ResultadoDosis r = dosificador.dosificar(ciclos);
@@ -117,6 +124,13 @@ Parametros crearParametros() {
   p.wifiReintentoMs = WIFI_REINTENTO_MS;
   p.wifiReinicioMs = WIFI_REINICIO_MS;
   p.errorReintentoMs = ERROR_REINTENTO_MS;
+  p.usarSensorNivel = USAR_SENSOR_NIVEL;
+  p.intervaloNivelMs = INTERVALO_NIVEL_MS;
+  p.nivelAlertaPct = NIVEL_ALERTA_PCT;
+  p.nivelRearmePct = NIVEL_REARME_PCT;
+  p.nivelVacioPct = NIVEL_VACIO_PCT;
+  p.lecturasNivel = LECTURAS_NIVEL;
+  p.reintentoAlertaMs = REINTENTO_ALERTA_MS;
   return p;
 }
 
@@ -126,13 +140,14 @@ Controlador controlador(hardware, crearParametros());
 // GET /status  (JSON para pruebas y monitoreo)
 // ----------------------------------------------------------------------------
 String estadoJson() {
-  char buf[512];
+  char buf[640];
   snprintf(buf, sizeof(buf),
            "{\"estado\":\"%s\",\"distancia_cm\":%.1f,\"ultima_clase\":%d,"
            "\"ultima_confianza\":%.2f,\"ultimo_motivo\":\"%s\","
            "\"raciones_perro\":%lu,\"raciones_gato\":%lu,"
            "\"raciones_24h_perro\":%u,\"raciones_24h_gato\":%u,"
            "\"cooldown_s\":%lu,\"v_bateria\":%.2f,\"v_servo\":%.2f,\"v_panel\":%.2f,"
+           "\"nivel_tolva\":%.0f,\"alerta_tolva\":\"%s\",\"alerta_pendiente\":%s,"
            "\"rssi\":%d,\"uptime_s\":%lu,\"heap\":%u}",
            nombreEstado(controlador.estado()), controlador.ultimaDistancia(),
            controlador.ultimaClase(), controlador.ultimaConfianza(), controlador.ultimoMotivo(),
@@ -140,7 +155,9 @@ String estadoJson() {
            (unsigned long)controlador.racionesTotales(CLASE_GATO),
            controlador.racionesUltimas24h(CLASE_PERRO), controlador.racionesUltimas24h(CLASE_GATO),
            (unsigned long)(controlador.cooldownRestanteMs() / 1000), energia.bateria(),
-           energia.servo(), energia.panel(), WiFi.RSSI(), (unsigned long)(millis() / 1000),
+           energia.servo(), energia.panel(), controlador.nivelTolva(),
+           nombreAlerta(controlador.alertaNivel()), controlador.alertaPendiente() ? "true" : "false",
+           WiFi.RSSI(), (unsigned long)(millis() / 1000),
            (unsigned)ESP.getFreeHeap());
   return String(buf);
 }
@@ -157,18 +174,36 @@ bool estadoPermiteManual() {
 void procesarComando(String linea) {
   linea.trim();
   String cmd = linea;
+  String resto = "";
   long arg = 0;
   int esp = linea.indexOf(' ');
   if (esp > 0) {
     cmd = linea.substring(0, esp);
-    arg = linea.substring(esp + 1).toInt();
+    resto = linea.substring(esp + 1);
+    arg = resto.toInt();
   }
   cmd.toUpperCase();
+  resto.toUpperCase();
 
   if (cmd == "AYUDA" || cmd == "?") {
-    Serial.println(F("DIST | SERVO <us> | CICLO <n> | CLASIFICAR | ENERGIA | ESTADO | RESET"));
+    Serial.println(F("DIST | NIVEL [VACIO|LLENO] | SERVO <us> | CICLO <n> | CLASIFICAR | ENERGIA | ESTADO | RESET"));
   } else if (cmd == "DIST") {
     Serial.printf("Distancia: %.1f cm\n", ultrasonico.medirCm());
+  } else if (cmd == "NIVEL") {
+    if (resto == "VACIO" || resto == "LLENO") {
+      bool ok = resto == "VACIO" ? nivel.calibrarVacia() : nivel.calibrarLlena();
+      Serial.printf("Calibracion %s: %s (vacia %.1f cm, llena %.1f cm)\n", resto.c_str(),
+                    ok ? "guardada" : "SIN ECO, no se guardo", nivel.distVacia(), nivel.distLlena());
+    } else {
+      float d = nivel.distanciaCm();
+      float h = nivel.alturaPct(d);
+      if (h < 0) {
+        Serial.printf("Nivel tolva: sin lectura (distancia %.1f cm)\n", d);
+      } else {
+        Serial.printf("Nivel tolva: %.0f %% del volumen (altura %.0f %%, distancia %.1f cm; vacia %.1f, llena %.1f)\n",
+                      alturaAVolumenPct(h), h, d, nivel.distVacia(), nivel.distLlena());
+      }
+    }
   } else if (cmd == "ENERGIA") {
     Serial.printf("Bateria %.2f V | Servo %.2f V | Panel %.2f V\n", energia.bateria(),
                   energia.servo(), energia.panel());
@@ -236,6 +271,7 @@ void setup() {
 
   energia.iniciar();
   ultrasonico.iniciar();
+  nivel.iniciar();
   if (!dosificador.iniciar()) Serial.println(F("ERROR: no se pudo configurar el PWM del servo"));
 
   red.iniciar(WIFI_SSID, WIFI_CLAVE);
@@ -245,7 +281,7 @@ void setup() {
 #ifdef SIMULACION_QEMU
   // Autoprueba para el emulador (ver ESP32/test_host/qemu_autoprueba.sh)
   const char* pruebas[] = {"AYUDA", "ESTADO", "DIST", "ENERGIA", "SERVO 1200", "SERVO 3000",
-                           "CICLO 1", "CLASIFICAR", "RESET", "ESTADO"};
+                           "CICLO 1", "CLASIFICAR", "NIVEL", "RESET", "ESTADO"};
   for (const char* p : pruebas) {
     Serial.printf("> %s\n", p);
     procesarComando(String(p));

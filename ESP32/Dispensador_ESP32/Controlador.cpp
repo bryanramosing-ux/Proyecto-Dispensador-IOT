@@ -28,7 +28,76 @@ const char* nombreEstado(Estado e) {
   return "?";
 }
 
+const char* nombreAlerta(Alerta a) {
+  switch (a) {
+    case Alerta::NINGUNA:                  return "NINGUNA";
+    case Alerta::COMIDA_BAJA:              return "COMIDA_BAJA";
+    case Alerta::COMIDA_AGOTADA:           return "COMIDA_AGOTADA";
+    case Alerta::COMIDA_REPUESTA:          return "COMIDA_REPUESTA";
+    case Alerta::SENSOR_NIVEL_SIN_LECTURA: return "SENSOR_NIVEL_SIN_LECTURA";
+  }
+  return "?";
+}
+
 Controlador::Controlador(Hardware& hw, const Parametros& p) : hw_(hw), p_(p) {}
+
+// ----------------------------------------------------------------------------
+// Nivel de la tolva: se mide cada intervaloNivelMs (y después de cada ración),
+// solo en ESPERANDO para no interferir con la dosis ni con el HC-SR04 frontal.
+// Un cambio de nivel se confirma con lecturasNivel lecturas seguidas
+// (las croquetas forman una superficie irregular) y tiene histéresis.
+// ----------------------------------------------------------------------------
+void Controlador::emitir(Alerta a) {
+  logf("ALERTA %s (nivel %.0f %%)", nombreAlerta(a), nivelPct_);
+  if (hw_.notificar(a, nivelPct_)) {
+    pendiente_ = Alerta::NINGUNA;
+  } else {
+    pendiente_ = a;                 // se reintenta más tarde
+    tPendiente_ = hw_.ahoraMs();
+  }
+}
+
+void Controlador::vigilarNivel(uint32_t ahora) {
+  if (!p_.usarSensorNivel) return;
+  if (pendiente_ != Alerta::NINGUNA && ahora - tPendiente_ >= p_.reintentoAlertaMs) {
+    emitir(pendiente_);
+  }
+  if (nivelMedido_ && ahora - tNivel_ < p_.intervaloNivelMs) return;
+  nivelMedido_ = true;
+  tNivel_ = ahora;
+
+  float n = hw_.nivelTolvaPct();
+  if (n < 0) {
+    if (++invalidas_ >= p_.lecturasNivel && !avisoSinLectura_) {
+      avisoSinLectura_ = true;
+      nivelPct_ = -1.0f;              // desconocido: NO bloquea la alimentación
+      emitir(Alerta::SENSOR_NIVEL_SIN_LECTURA);
+    }
+    return;
+  }
+  invalidas_ = 0;
+  avisoSinLectura_ = false;
+  nivelPct_ = n;
+
+  bajas_ = (n < p_.nivelAlertaPct) ? bajas_ + 1 : 0;
+  vacias_ = (n <= p_.nivelVacioPct) ? vacias_ + 1 : 0;
+  noVacias_ = (n > p_.nivelVacioPct) ? noVacias_ + 1 : 0;
+  altas_ = (n > p_.nivelRearmePct) ? altas_ + 1 : 0;
+
+  if (vacias_ >= p_.lecturasNivel && alertaNivel_ != Alerta::COMIDA_AGOTADA) {
+    alertaNivel_ = Alerta::COMIDA_AGOTADA;
+    emitir(Alerta::COMIDA_AGOTADA);
+  } else if (altas_ >= p_.lecturasNivel && alertaNivel_ != Alerta::NINGUNA) {
+    alertaNivel_ = Alerta::NINGUNA;
+    emitir(Alerta::COMIDA_REPUESTA);
+  } else if (bajas_ >= p_.lecturasNivel && alertaNivel_ == Alerta::NINGUNA) {
+    alertaNivel_ = Alerta::COMIDA_BAJA;
+    emitir(Alerta::COMIDA_BAJA);
+  } else if (noVacias_ >= p_.lecturasNivel && alertaNivel_ == Alerta::COMIDA_AGOTADA) {
+    alertaNivel_ = Alerta::COMIDA_BAJA;   // repuesto un poco: vuelve a dispensar, sigue bajo
+    emitir(Alerta::COMIDA_BAJA);
+  }
+}
 
 void Controlador::logf(const char* fmt, ...) {
   char buf[160];
@@ -128,6 +197,12 @@ bool Controlador::racionPermitida(int clase, char* porque, int n) {
     snprintf(porque, n, "limite diario alcanzado");
     return false;
   }
+  // Tolva vacía confirmada: girar el disco no entregaría nada y la ración se
+  // contaría mal. Si el nivel es DESCONOCIDO (sensor sin lectura) se alimenta igual.
+  if (p_.usarSensorNivel && alertaNivel_ == Alerta::COMIDA_AGOTADA) {
+    snprintf(porque, n, "tolva vacia: reponer alimento");
+    return false;
+  }
   return true;
 }
 
@@ -163,6 +238,7 @@ void Controlador::actualizar() {
   switch (estado_) {
     // ------------------------------------------------------------------
     case Estado::ESPERANDO: {
+      vigilarNivel(ahora);
       float d = hw_.distanciaCm();
       ultimaDistancia_ = d;
       bool presente = mascotaPresente(d);
@@ -276,6 +352,7 @@ void Controlador::actualizar() {
       ResultadoDosis r = hw_.dosificar(ciclos);
       if (r == ResultadoDosis::OK) {
         registrarRacion(ultimaClase_);
+        nivelMedido_ = false;   // volver a medir la tolva enseguida
         cambiarA(Estado::FINALIZADO, "racion entregada");
       } else if (r == ResultadoDosis::SIN_ALIMENTACION_SERVO) {
         cambiarA(Estado::ERROR_SERVO, "el servo perdio alimentacion");

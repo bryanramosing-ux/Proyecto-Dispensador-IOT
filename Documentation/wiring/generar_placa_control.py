@@ -11,7 +11,7 @@ Verificaciones automáticas (el script falla si algo no cuadra):
   * cada red (net) queda conectada en un solo trozo y ningún agujero pertenece a dos redes;
   * los GPIO de la placa coinciden con ESP32/Dispensador_ESP32/config.h;
   * no se usa ningún pin prohibido (flash, UART, arranque, 3V3);
-  * el divisor del ECHO deja <= 3,4 V en el GPIO con 5,1 V de alimentación.
+  * los divisores de los dos ECHO dejan <= 3,4 V en el GPIO con 5,1 V de alimentación.
 
 Coordenadas: (columna 1..35, fila 1..27) contando desde la esquina superior izquierda.
 El ESP32 va sobre tiras de pines HEMBRA (se puede retirar). Se asume la DOIT DevKit V1
@@ -41,6 +41,11 @@ COMP = {
     "J2": {"tipo": "conector", "texto": "J2 HC-SR04", "pines": {"VCC": (33, 4), "TRIG": (33, 5), "ECHO": (33, 6), "GND": (33, 7)}},
     "J3": {"tipo": "conector", "texto": "J3 SERVO señal", "pines": {"SIG": (33, 9), "GND": (33, 10)}},
     "J4": {"tipo": "conector", "texto": "J4 MEDICIÓN", "pines": {"VBAT": (33, 12), "V6": (33, 13), "VPAN": (33, 14), "GND": (33, 15)}},
+    # J5: HC-SR04 de la TOLVA (sensor de nivel). Horizontal en el borde superior; de izquierda a
+    # derecha GND-ECHO-TRIG-VCC: el mismo cable de 4 hilos, girado (sin cruzar hilos).
+    "J5": {"tipo": "conector", "texto": "J5 NIVEL TOLVA", "pines": {"GND": (6, 2), "ECHO": (7, 2), "TRIG": (8, 2), "VCC": (9, 2)}},
+    "R5": {"tipo": "res", "texto": "R5 1k", "rotulo": "izquierda", "pines": {"1": (7, 3), "2": (7, 7)}},
+    "R6": {"tipo": "res", "texto": "R6 2k", "pines": {"1": (6, 7), "2": (2, 7)}},
     "R1": {"tipo": "res", "texto": "R1 1k", "pines": {"1": (31, 6), "2": (27, 6)}},
     "R2": {"tipo": "res", "texto": "R2 2k", "pines": {"1": (24, 6), "2": (24, 10)}},
     "R3": {"tipo": "res", "texto": "R3 330", "pines": {"1": (31, 9), "2": (27, 9)}},
@@ -54,7 +59,11 @@ COMP = {
 # Rutas de los cables de señal (lista de agujeros por los que pasa cada cable).
 # Cada señal baja a su "carril" bajo el ESP32 y sube a su pin: así nunca pasa sobre otro pin.
 RUTAS = {
-    "5V": [[(33, 3), (33, 4)], [(33, 3), (21, 3)], [(21, 3), (19, 3), (19, 18), (17, 18)]],
+    "5V": [[(33, 3), (33, 4)], [(33, 3), (21, 3)], [(21, 3), (21, 2), (9, 2)],
+           [(9, 2), (9, 7), (18, 7), (18, 18), (17, 18)]],
+    "TRIG2": [[(8, 2), (8, 8)]],
+    "ECHO2_5V": [[(7, 2), (7, 3)]],
+    "ECHO2_3V3": [[(7, 7), (7, 8)], [(7, 7), (6, 7)]],
     "TRIG": [[(33, 5), (25, 5), (25, 19), (11, 19), (11, 18)]],
     "ECHO_5V": [[(33, 6), (31, 6)]],
     "ECHO_3V3": [[(27, 6), (24, 6)], [(24, 6), (23, 6), (23, 24), (6, 24), (6, 18)]],
@@ -65,15 +74,16 @@ RUTAS = {
     "VBAT_S": [[(33, 12), (28, 12), (28, 23), (25, 23)], [(25, 23), (7, 23), (7, 18)]],
 }
 
-# Bus de GND en "L": columna 35 (filas 2-26) y fila 26 (columnas 3-35), agujeros unidos con
-# estaño o alambre desnudo
-BUS_GND = [(35, r) for r in range(2, 27)] + [(c, 26) for c in range(34, 2, -1)]
+# Bus de GND en "U": fila 1 (columnas 1-35), columna 35 (filas 1-26) y fila 26 (columnas 3-35),
+# agujeros unidos con estaño o alambre desnudo
+BUS_GND = [(c, 1) for c in range(1, 35)] + [(35, r) for r in range(1, 27)] + [(c, 26) for c in range(34, 2, -1)]
+ESQUINAS_BUS = [(1, 1), (35, 1), (35, 26), (3, 26)]
 
 REDES = {
     # nombre: (color, [pines])
-    "5V": ("#e67e22", ["J1.5V", "ESP32.A.VIN", "J2.VCC", "C4.+"]),
-    "GND": ("#111111", ["J1.GND", "J2.GND", "J3.GND", "J4.GND", "ESP32.A.GND", "R2.2", "R4.2",
-                        "C1.2", "C2.2", "C3.2", "C4.-"]),
+    "5V": ("#e67e22", ["J1.5V", "ESP32.A.VIN", "J2.VCC", "C4.+", "J5.VCC"]),
+    "GND": ("#111111", ["J1.GND", "J2.GND", "J3.GND", "J4.GND", "J5.GND", "ESP32.A.GND", "R2.2", "R4.2",
+                        "R6.2", "C1.2", "C2.2", "C3.2", "C4.-"]),
     "TRIG": ("#1f77b4", ["J2.TRIG", "ESP32.A.D26"]),
     "ECHO_5V": ("#8c564b", ["J2.ECHO", "R1.1"]),
     "ECHO_3V3": ("#17becf", ["R1.2", "R2.1", "ESP32.A.D34"]),
@@ -82,9 +92,12 @@ REDES = {
     "VBAT_S": ("#2ca02c", ["J4.VBAT", "C1.1", "ESP32.A.D35"]),
     "V6_S": ("#7f7f00", ["J4.V6", "C2.1", "ESP32.A.D32"]),
     "VPAN_S": ("#bcbd22", ["J4.VPAN", "C3.1", "ESP32.A.D33"]),
+    "TRIG2": ("#3949ab", ["J5.TRIG", "ESP32.B.D19"]),
+    "ECHO2_5V": ("#a0522d", ["J5.ECHO", "R5.1"]),
+    "ECHO2_3V3": ("#00897b", ["R5.2", "R6.1", "ESP32.B.D21"]),
 }
 
-R_ECHO = (1000.0, 2000.0)      # R1 serie, R2 a GND
+R_ECHO = (1000.0, 2000.0)      # R1 serie, R2 a GND  (y R5 serie, R6 a GND en el ECHO de la tolva)
 
 
 def agujero(ref):
@@ -180,9 +193,10 @@ def verificar(cables):
     # 3) coherencia con config.h
     pines = leer_config()
     esperado = {"TRIG": pines["PIN_TRIG"], "ECHO_3V3": pines["PIN_ECHO"], "SERVO_GPIO": pines["PIN_SERVO"],
-                "VBAT_S": pines["PIN_VBAT"], "V6_S": pines["PIN_VSERVO"], "VPAN_S": pines["PIN_VPANEL"]}
+                "VBAT_S": pines["PIN_VBAT"], "V6_S": pines["PIN_VSERVO"], "VPAN_S": pines["PIN_VPANEL"],
+                "TRIG2": pines["PIN_TRIG_NIVEL"], "ECHO2_3V3": pines["PIN_ECHO_NIVEL"]}
     for red, gpio in esperado.items():
-        if f"ESP32.A.D{gpio}" not in REDES[red][1]:
+        if not {f"ESP32.A.D{gpio}", f"ESP32.B.D{gpio}"} & set(REDES[red][1]):
             errores.append(f"{red}: config.h usa GPIO{gpio} pero la placa no lo conecta")
     # 4) pines prohibidos
     for red, (_, refs) in REDES.items():
@@ -229,12 +243,12 @@ def svg(cables):
         _, y = xy((1, r))
         o.append(f'<text x="{x0 - 22}" y="{y + 3}" text-anchor="end" font-size="9" fill="#666">{r}</text>')
     # bus GND
-    pts = " ".join("{},{}".format(*xy(h)) for h in (BUS_GND[0], (35, 26), BUS_GND[-1]))
+    pts = " ".join("{},{}".format(*xy(h)) for h in ESQUINAS_BUS)
     o.append(f'<polyline points="{pts}" fill="none" stroke="#111" stroke-width="6" stroke-linecap="round" '
              'stroke-linejoin="round"/>')
     bx0, by = xy(BUS_GND[-1])
-    o.append(f'<text x="{bx0}" y="{by + 22}" font-size="11">BUS GND: columna 35 y fila 26 unidas con estaño o '
-             'alambre desnudo</text>')
+    o.append(f'<text x="{bx0}" y="{by + 22}" font-size="11">BUS GND en U: fila 1, columna 35 y fila 26 unidas con '
+             'estaño o alambre desnudo</text>')
     # ESP32
     ex0, ey0 = xy((2, 7))
     ex1, ey1 = xy((19, 19))
@@ -259,7 +273,17 @@ def svg(cables):
         hs = list(c["pines"].values())
         xs = [xy(h)[0] for h in hs]
         ys = [xy(h)[1] for h in hs]
-        if c["tipo"] == "conector":
+        if c["tipo"] == "conector" and len(set(ys)) == 1:          # horizontal (J5)
+            o.append(f'<rect x="{min(xs) - 10}" y="{ys[0] - 9}" width="{max(xs) - min(xs) + 20}" height="18" '
+                     'fill="#fdebd0" stroke="#7e5109" stroke-width="1.5"/>')
+            for pin, h in c["pines"].items():
+                x, y = xy(h)
+                o.append(f'<text x="{x}" y="{y - 11}" text-anchor="middle" font-size="8" font-weight="bold">{pin}</text>')
+            tx, ty = xy((10, 4))
+            o.append(f'<text x="{tx}" y="{ty}" font-weight="bold">{c["texto"]}</text>'
+                     f'<text x="{tx}" y="{ty + 14}">HC-SR04 de la tapa de la tolva</text>'
+                     f'<text x="{tx}" y="{ty + 28}">← GND · ECHO · TRIG · VCC</text>')
+        elif c["tipo"] == "conector":
             o.append(f'<rect x="{min(xs) - 9}" y="{min(ys) - 10}" width="18" height="{max(ys) - min(ys) + 20}" '
                      'fill="#fdebd0" stroke="#7e5109" stroke-width="1.5"/>')
             for pin, h in c["pines"].items():
@@ -277,8 +301,10 @@ def svg(cables):
             o.append(f'<rect x="{rx0}" y="{ry0}" width="{rx1 - rx0}" height="{ry1 - ry0}" rx="3" fill="{relleno}" '
                      'stroke="#333"/>')
             tx, ty = ((rx0 + rx1) / 2, ry0 - 4) if not vert else (rx1 + 4, (ry0 + ry1) / 2 + 4)
-            o.append(f'<text x="{tx}" y="{ty}" text-anchor="{"middle" if not vert else "start"}" '
-                     f'font-weight="bold">{c["texto"]}</text>')
+            ancla = "middle" if not vert else "start"
+            if c.get("rotulo") == "izquierda":
+                tx, ancla = rx0 - 4, "end"
+            o.append(f'<text x="{tx}" y="{ty}" text-anchor="{ancla}" font-weight="bold">{c["texto"]}</text>')
             if c["tipo"] == "elec":
                 x, y = xy(c["pines"]["+"])
                 o.append(f'<text x="{x - 12}" y="{y + 4}" font-weight="bold">+</text>')
@@ -300,6 +326,8 @@ def svg(cables):
             a, b = max(zip(ruta, ruta[1:]), key=lambda ab: math.dist(*ab))
             (xa, ya), (xb, yb) = xy(a), xy(b)
             mx, my = (xa + xb) / 2, (ya + yb) / 2
+            if math.dist(a, b) <= 1:          # cable de un paso: el número va al costado, no encima de los pines
+                mx, my = (mx - 18, my) if xa == xb else (mx, my - 13)
             o.append(f'<circle cx="{mx}" cy="{my}" r="8" fill="#fff" stroke="{color}" stroke-width="1.5"/>'
                      f'<text x="{mx}" y="{my + 3.5}" text-anchor="middle" font-size="9" font-weight="bold">{n}</text>')
     # leyenda
@@ -314,7 +342,7 @@ def svg(cables):
              "", "Los números remiten a la", "lista de cables", "(placa_control.md).", "",
              "El servo se alimenta del", "Buck A (6 V) directamente:", "por esta placa solo pasa", "su SEÑAL."]
     for i, t in enumerate(notas):
-        o.append(f'<text x="{lx}" y="{ly + 250 + i * 16}" font-size="11">{t}</text>')
+        o.append(f'<text x="{lx}" y="{ly + 22 + len(REDES) * 20 + 30 + i * 16}" font-size="11">{t}</text>')
     o.append("</svg>")
     return "\n".join(o)
 
@@ -331,7 +359,8 @@ def markdown(cables):
             continue
         pines = ", ".join(f"{p} {h}" for p, h in c["pines"].items())
         filas.append(f"| {nombre} | {c.get('texto', '')} | {pines} |")
-    filas += ["", "Bus GND en L: agujeros (35,2) a (35,26) y (3,26) a (35,26) unidos con estaño o alambre desnudo.", "",
+    filas += ["", "Bus GND en U: agujeros (1,1) a (35,1), (35,1) a (35,26) y (3,26) a (35,26) unidos con estaño o "
+              "alambre desnudo.", "",
               "## Cables (soldar uno por uno y tachar)", "", "| N.º | Red | Desde | Hasta | Recorrido (dobleces) |",
               "|---|---|---|---|---|"]
     inverso = {h: f"{c}.{p}" for c, d in COMP.items() for p, h in d["pines"].items()}
@@ -351,20 +380,22 @@ def markdown(cables):
               "| Cable | Desde | Hasta | Conductores | Sección | Longitud aprox. |", "|---|---|---|---|---|---|",
               "| J1 | Bus 5 V del cajón (Buck B) | J1 de la placa de control | 5V, GND | AWG 22 | 25 cm |",
               "| J4 | Divisores del cajón | J4 de la placa de control | VBAT, V6, VPAN, GND | AWG 24–26 | 25 cm |",
-              "| J2 | J2 de la placa | HC-SR04 (cápsula 03, paso izquierdo del tabique) | VCC, TRIG, ECHO, GND | AWG 24–26 | 30 cm |",
+              "| J2 | J2 de la placa | HC-SR04 de presencia (cápsula 03, paso izquierdo del tabique) | VCC, TRIG, ECHO, GND | AWG 24–26 | 30 cm |",
+              "| J5 | J5 de la placa | HC-SR04 de nivel (cápsula 13b en la tapa): ranura de la tapa → conducto de la esquina trasera izquierda (07, 08d) → bahía trasera de 02 | VCC, TRIG, ECHO, GND (cable de 4 hilos, mejor apantallado) | AWG 24–26 | 120 cm (incluye 20 cm flojos para levantar la tapa) |",
               "| J3 | J3 de la placa | Cables naranja (señal) y marrón (GND) del MG995 | SIG, GND | AWG 24 | 20 cm (el cable del MG995 suele alcanzar) |",
               "| Servo 6 V | Buck A del cajón (+ C1 1000–2200 µF junto al servo) | Cable rojo (+) y marrón (−) del MG995 | 6V, GND | **AWG 20** | 40 cm |",
               "| Cámara | Bus 5 V del cajón | ESP32-CAM (cápsula 04, paso derecho del tabique; 470 µF + 100 nF en la cápsula) | 5V, GND | AWG 22 | 45 cm |",
-              "| Panel | Panel solar (soporte 12) | Elevador MT3608 y divisor del panel en el cajón (por el conducto de la esquina) | +, − | AWG 22 | 70 cm (alargar el cable del panel) |",
+              "| Panel | Panel solar en la estación remota (12a/12b) | Conector GX12 de 2 pines en la tapa del cajón 16 → elevador MT3608 y divisor del panel | +, − | AWG 20–22 (bipolar, exterior) | 3–5 m según dónde haya sol (medir) |",
               "", "## Conectores de la placa", "",
               "| Conector | Pin | Va a |", "|---|---|---|",
               "| J1 | 5V / GND | Bus de 5 V del cajón de energía (Buck B) |",
               "| J2 | VCC / TRIG / ECHO / GND | HC-SR04 (cápsula 03) |",
               "| J3 | SIG / GND | Cable naranja y marrón del MG995 (el rojo va al Buck A de 6 V, NO a esta placa) |",
               "| J4 | VBAT / V6 / VPAN / GND | Salidas de los divisores 100k/33k, 100k/33k y 100k/100k montados en el cajón |",
+              "| J5 | GND / ECHO / TRIG / VCC (de izquierda a derecha) | HC-SR04 de nivel en la tapa de la tolva (el mismo cable de 4 hilos, girado 180°) |",
               "", "Antes de colocar el ESP32: con el multímetro, comprobar que no hay continuidad entre 5V y GND",
-              "ni entre la red ECHO_5V y el ESP32; con J1 alimentado y el HC-SR04 conectado, medir ≤ 3,4 V en el",
-              "agujero del pin D34 al disparar."]
+              "ni entre las redes ECHO_5V / ECHO2_5V y el ESP32; con J1 alimentado y los HC-SR04 conectados, medir",
+              "≤ 3,4 V en los agujeros de D34 y D21 al disparar (comandos serie DIST y NIVEL)."]
     return "\n".join(filas) + "\n"
 
 

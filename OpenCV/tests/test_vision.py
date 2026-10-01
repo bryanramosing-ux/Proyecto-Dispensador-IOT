@@ -128,6 +128,10 @@ class TestServidorExtremoAExtremo(unittest.TestCase):
         servicio = servidor_vision.ServicioVision.__new__(servidor_vision.ServicioVision)
         servicio.cfg, servicio.clasificador = cfg, ClasificadorFalso(0.03, 0.91)
         servicio.candado, servicio.total, servicio.ultimo = threading.Lock(), 0, None
+        servicio.historial = []
+        cfg.ESP32_URL = "http://127.0.0.1:9"    # ESP32 apagado: el panel debe informarlo
+        cfg.NTFY_TOPICO = ""
+        servicio.alertas = servidor_vision.GestorAlertas(cfg)
         cls.servicio = servicio
         cls.srv = ThreadingHTTPServer(("127.0.0.1", 0), servidor_vision.crear_manejador(servicio))
         threading.Thread(target=cls.srv.serve_forever, daemon=True).start()
@@ -137,6 +141,8 @@ class TestServidorExtremoAExtremo(unittest.TestCase):
     def tearDownClass(cls):
         cls.srv.shutdown()
         cls.cam.shutdown()
+        cls.srv.server_close()
+        cls.cam.server_close()
 
     def get(self, ruta):
         try:
@@ -161,6 +167,61 @@ class TestServidorExtremoAExtremo(unittest.TestCase):
 
     def test_ruta_desconocida(self):
         self.assertEqual(self.get("/feed")[0], 404)
+
+    def post(self, ruta, datos):
+        pedido = urllib.request.Request(self.url + ruta, data=json.dumps(datos).encode(), method="POST",
+                                        headers={"Content-Type": "application/json"})
+        try:
+            with urllib.request.urlopen(pedido, timeout=10) as r:
+                return r.status, json.loads(r.read())
+        except urllib.error.HTTPError as e:
+            return e.code, json.loads(e.read())
+
+    def test_alerta_comida_baja(self):
+        codigo, d = self.post("/alerta", {"tipo": "COMIDA_BAJA", "nivel": 18})
+        self.assertEqual((codigo, d["ok"]), (200, True))
+        self.assertIn("18 %", d["alerta"]["mensaje"])
+        panel = self.get("/panel.json")[1]
+        self.assertEqual(panel["alertas"][0]["tipo"], "COMIDA_BAJA")
+        self.assertIn("error", panel["esp32"])          # ESP32 inalcanzable: se informa, no se cae
+
+    def test_alerta_invalida(self):
+        self.assertEqual(self.post("/alerta", {"tipo": "OTRA_COSA"})[0], 400)
+
+    def test_panel_html(self):
+        with urllib.request.urlopen(self.url + "/", timeout=10) as r:
+            html = r.read().decode("utf-8")
+        self.assertIn("Nivel de la tolva", html)
+
+
+class TestNtfy(unittest.TestCase):
+    """El reenvío al celular usa un servidor ntfy (aquí, uno falso local)."""
+
+    def test_reenvio(self):
+        recibido = {}
+
+        class Ntfy(BaseHTTPRequestHandler):
+            def do_POST(self):  # noqa: N802
+                recibido["ruta"] = self.path
+                recibido["titulo"] = self.headers.get("Title")
+                recibido["cuerpo"] = self.rfile.read(int(self.headers["Content-Length"])).decode("utf-8")
+                self.send_response(200)
+                self.end_headers()
+
+            def log_message(self, *a):
+                pass
+
+        srv = ThreadingHTTPServer(("127.0.0.1", 0), Ntfy)
+        threading.Thread(target=srv.serve_forever, daemon=True).start()
+        cfg = types.SimpleNamespace(NTFY_TOPICO="dispensador-prueba",
+                                    NTFY_SERVIDOR=f"http://127.0.0.1:{srv.server_port}")
+        gestor = servidor_vision.GestorAlertas(cfg)
+        gestor._enviar(gestor.registrar("COMIDA_AGOTADA", 2), "urgent")
+        srv.shutdown()
+        srv.server_close()
+        self.assertEqual(recibido["ruta"], "/dispensador-prueba")
+        self.assertEqual(recibido["titulo"], "Tolva vacia")
+        self.assertIn("vacía", recibido["cuerpo"])
 
 
 if __name__ == "__main__":

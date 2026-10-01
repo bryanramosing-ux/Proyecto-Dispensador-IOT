@@ -13,6 +13,7 @@ class Red {
   bool camaraDisponible();
   bool servidorDisponible();
   RespuestaClasificacion clasificar(int distanciaCm);
+  bool notificar(const char* tipo, float nivelPct);   // POST PC /alerta
   void iniciarServidorEstado(GeneradorEstado generador);
   void atender();
 
