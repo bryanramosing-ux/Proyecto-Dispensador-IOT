@@ -112,9 +112,13 @@ eléctricamente posible; ver §16 y §21):
 | Fusible 4 A lento + portafusible | 1 | Protección del cableado de batería |
 | Interruptor basculante (≥ 6 A) | 1 | Corte general |
 
+Lista de compras completa (con cantidades) en
+[`Documentation/components/lista_materiales.csv`](Documentation/components/lista_materiales.csv) (se abre con Excel o
+Google Sheets).
+
 **Componentes pasivos y de montaje:** R1 1 kΩ, R2 2 kΩ (divisor ECHO); 330 Ω (serie señal servo); 10 kΩ
 (pull-down señal servo); 4 × 100 kΩ y 2 × 33 kΩ (divisores de medición); 1 × 1000–2200 µF ≥ 10 V (servo);
-2 × 470 µF ≥ 10 V (bus 5 V y ESP32-CAM); 4 × 100 nF; placa perforada 90×70 mm; tiras de pines hembra; borneras;
+3 × 470 µF ≥ 10 V (salida del Buck B, placa de control y ESP32-CAM); 4 × 100 nF (3 en la placa de control junto a los ADC, 1 en la ESP32-CAM); placa perforada 90×70 mm; tiras de pines hembra; borneras;
 conectores entre módulos (JST-XH o XT30); cable AWG 20 (potencia) y AWG 24 (señal); tornillería M3 (≈ 35 tornillos
 M3×10, 4 × M3×12, 12 tuercas M3); adaptador USB-TTL 3,3 V o placa ESP32-CAM-MB (solo para programar la cámara);
 PC/notebook con Wi-Fi; router o punto de acceso 2,4 GHz.
@@ -983,6 +987,7 @@ Proyecto-Dispensador-IOT/
 │   ├── render/                        (vistas y cortes)
 │   └── README.md
 └── Documentation/
+    ├── components/lista_materiales.csv (lista de compras)
     ├── wiring/                        (esquema_conexiones.svg/.png, placa_control.svg/.png/.md + generador)
     ├── power/calculo_energia.py
     └── calibration/                   (plantillas CSV + analizar_dosificacion.py)

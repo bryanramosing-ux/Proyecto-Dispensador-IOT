@@ -1,0 +1,39 @@
+categoria,componente,cantidad,especificacion,uso,notas
+principal,ESP32 DevKit V1,1,ESP32-WROOM-32 30 pines (DOIT),Controlador y actuador,Verificar si tiene diodo entre USB y VIN
+principal,ESP32-CAM,1,AI-Thinker con OV2640 y PSRAM,Captura de imagenes,
+principal,HC-SR04,1,Version de 5 V,Deteccion de aproximacion,Si es HC-SR04P puede ir a 3.3 V sin divisor
+principal,Servomotor MG995,1,Version 180 grados (NO la de giro continuo),Dosificador,Incluye horns y tornillos
+principal,Panel solar,1,~3 V 100 mA,Captacion solar demostrativa,Medir Voc Isc y dimensiones
+programacion,ESP32-CAM-MB o adaptador USB-TTL 3.3 V,1,,Cargar el firmware de la ESP32-CAM,
+auxiliar_energia,Celda Li-ion 18650,2,Marca reconocida y capacidad real,Almacenamiento,4 unidades para 2S2P (recomendado)
+auxiliar_energia,Portapilas 2x18650 en serie,1,,Montaje de las celdas,2 si se usa 2S2P
+auxiliar_energia,BMS 2S con balanceo,1,>= 5 A continuos; puerto comun,Proteccion de la bateria,
+auxiliar_energia,Cargador elevador USB-C 2S,1,Entrada 5 V; salida CC/CV 8.4 V,Carga principal,Verificar que este configurado para 2 celdas
+auxiliar_energia,Elevador MT3608,1,Ajustable; ajustar a 5.0 V,Panel -> entrada del cargador,
+auxiliar_energia,Diodo Schottky 1N5817,1,1 A 20 V,Anti-retorno del panel,
+auxiliar_energia,Convertidor reductor Buck A,1,>= 3 A continuos (p. ej. XL4015),6.0 V exclusivo del MG995,Ajustar antes de conectar
+auxiliar_energia,Convertidor reductor Buck B,1,2-3 A (p. ej. LM2596 o MP1584),5.0 V para logica,Ajustar antes de conectar
+auxiliar_energia,Fusible lento 4 A + portafusible,1,,Proteccion del cableado de bateria,
+auxiliar_energia,Interruptor basculante,1,>= 6 A; recorte 19x13 mm,Corte general,Verificar recorte del cajon
+pasivo,Resistencia 1 kOhm 1/4 W,1,,R1 divisor ECHO (serie),
+pasivo,Resistencia 2 kOhm 1/4 W,1,,R2 divisor ECHO (a GND),
+pasivo,Resistencia 330 Ohm 1/4 W,1,,R3 serie senal del servo,
+pasivo,Resistencia 10 kOhm 1/4 W,1,,R4 pull-down senal del servo,
+pasivo,Resistencia 100 kOhm 1/4 W 1%,4,,Divisores VBAT V6 y panel,
+pasivo,Resistencia 33 kOhm 1/4 W 1%,2,,Divisores VBAT y V6,
+pasivo,Condensador ceramico 100 nF,4,,3 filtros ADC en la placa de control + 1 en la ESP32-CAM,
+pasivo,Condensador electrolitico 470 uF >= 10 V,3,,Salida Buck B + placa de control + ESP32-CAM,
+pasivo,Condensador electrolitico 1000-2200 uF >= 10 V,1,,Junto al conector del MG995,
+opcional,74AHCT125,1,,Adaptador 3.3 V -> 5 V si el MG995 no responde a 3.3 V,Solo si falla la Prueba 3
+montaje,Placa perforada 90x70 mm,1,Paso 2.54 mm,Placa de control,Ver Documentation/wiring/placa_control.md
+montaje,Tira de pines hembra 1x15,2,Paso 2.54 mm,Zocalo del ESP32,
+montaje,Conector JST-XH 2 pines (macho + hembra con cable),2,,J1 y J3,
+montaje,Conector JST-XH 4 pines (macho + hembra con cable),2,,J2 y J4,
+montaje,Conector XT30 o JST-VH (par),2,,Potencia entre modulos (6 V y 5 V),
+montaje,Cable AWG 20,1,~1 m rojo + 1 m negro,Bateria y servo,
+montaje,Cable AWG 22-26,1,~4 m surtido de colores,Senales y 5 V,
+montaje,Tornillo M3x10 (rosca en plastico),35,,Uniones de modulos tapas pods y bandeja,
+montaje,Tornillo M3x12,4,,Union base-cuerpo,
+montaje,Tuerca M3,12,,Pods y bandeja del ESP32,
+impresion,Filamento PETG apto para alimentos,1.5,kg,Piezas en contacto con el alimento,
+impresion,Filamento PLA o PETG,1,kg,Estructura y cápsulas,PETG/ASA si recibe sol

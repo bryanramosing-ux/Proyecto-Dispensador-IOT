@@ -111,7 +111,7 @@
   <text x="612" y="377" class="pin">VBAT  100k/33k → 2,08 V @8,4 V</text>
   <text x="612" y="397" class="pin">V6    100k/33k → 1,49 V @6,0 V</text>
   <text x="612" y="417" class="pin">Vpan  100k/100k→ 2,00 V @4,0 V</text>
-  <text x="612" y="440" class="s">100 nF de cada salida a GND</text>
+  <text x="612" y="440" class="s">filtro 100 nF a GND junto al ESP32</text>
   <text x="612" y="458" class="s">montados en el cajón de energía:</text>
   <text x="612" y="476" class="s">por el cable solo viaja una señal</text>
   <text x="612" y="494" class="s">de alta impedancia (no 8,4 V)</text>
