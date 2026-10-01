@@ -20,6 +20,12 @@ esptool.py --chip esp32 merge_bin --fill-flash-size 4MB -o "$TMP/flash.bin" \
   0x10000 "$BUILD/Dispensador_ESP32.ino.bin" >/dev/null
 
 LOG="$TMP/serie.log"
+: > "$LOG"
+if ! "$QEMU" --version >/dev/null 2>&1; then
+  echo "ERROR: no se puede ejecutar $QEMU (¿faltan bibliotecas? ldd lo indica):"
+  ldd "$QEMU" | grep "not found" || true
+  exit 2
+fi
 "$QEMU" -machine esp32 -display none -serial "file:$LOG" -drive "file=$TMP/flash.bin,if=mtd,format=raw" &
 PID=$!
 for _ in $(seq "$TIEMPO"); do

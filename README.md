@@ -418,6 +418,18 @@ Fuente editable: [`Documentation/wiring/esquema_conexiones.svg`](Documentation/w
                  └──────────────────┘
 ```
 
+### Placa de control (placa perforada 90×70 mm)
+
+![Placa de control](Documentation/wiring/placa_control.png)
+
+Disposición de soldadura con 27 cables numerados y su lista paso a paso en
+[`Documentation/wiring/placa_control.md`](Documentation/wiring/placa_control.md). La genera
+[`generar_placa_control.py`](Documentation/wiring/generar_placa_control.py), que además **verifica** que cada red quede
+unida, que ningún cable pase sobre un agujero ajeno, que los GPIO coincidan con `config.h`, que no se use ningún pin
+prohibido y que el divisor deje ≤ 3,4 V en GPIO34 (esta comprobación corre en GitHub Actions). El ESP32 va sobre tiras
+de pines **hembra** (se retira para programarlo o reemplazarlo); el servo **no** recibe alimentación por esta placa,
+solo su señal.
+
 **Correcciones respecto del esquema sugerido:** el MG995 no se alimenta desde el ESP32 sino desde un convertidor
 de 6,0 V propio; la línea ECHO pasa por un divisor; la señal del servo lleva una resistencia serie (limita la
 corriente si el servo inyecta ruido) y un pull-down (evita movimientos al arrancar, cuando el GPIO está en alta
@@ -466,6 +478,9 @@ impedancia); la ESP32-CAM no se cablea al ESP32 (solo Wi-Fi).
 | **Evitados** | 6–11 (memoria flash), 1 y 3 (UART del USB), 12 (selecciona la tensión de la flash: un nivel alto al arrancar impide iniciar), 15 y 5 (arranque), 14 (emite PWM al arrancar), ADC2 para medidas analógicas | — |
 
 Sin conflictos: cada GPIO tiene una sola función y ninguno comparte periférico.
+
+**Arnés de cables** (qué cable va de qué módulo a cuál, conductores, sección y longitud aproximada medida sobre el
+modelo 3D): ver [`Documentation/wiring/placa_control.md`](Documentation/wiring/placa_control.md#arnés-de-cables-de-la-torre).
 
 ## 16. Alimentación eléctrica
 
@@ -968,7 +983,7 @@ Proyecto-Dispensador-IOT/
 │   ├── render/                        (vistas y cortes)
 │   └── README.md
 └── Documentation/
-    ├── wiring/                        (esquema_conexiones.svg / .png)
+    ├── wiring/                        (esquema_conexiones.svg/.png, placa_control.svg/.png/.md + generador)
     ├── power/calculo_energia.py
     └── calibration/                   (plantillas CSV + analizar_dosificacion.py)
 ```
@@ -1134,6 +1149,11 @@ cd Mechanical && python generar_stl.py                    # 34 verificaciones ge
 | La torre se vuelca | Lastre en la base; fijar a una tabla o pared; tolva llena solo hasta la mitad en pruebas |
 
 ## 41. Lista de verificación
+
+**Antes de colocar el ESP32 en la placa de control**
+- [ ] Los 27 cables de `placa_control.md` soldados y tachados
+- [ ] Sin continuidad entre 5V y GND, ni entre ECHO_5V (R1) y el pin D34
+- [ ] Con J1 alimentado y el HC-SR04 conectado: ≤ 3,4 V en el agujero de D34 al disparar
 
 **Antes de conectar la batería**
 - [ ] Buck A = 6,0 V y Buck B = 5,0 V medidos sin carga
