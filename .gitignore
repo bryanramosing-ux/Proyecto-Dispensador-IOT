@@ -6,6 +6,7 @@ OpenCV/model/*.onnx
 OpenCV/model/imagenet_classes.txt
 OpenCV/capturas/
 OpenCV/dataset/
+OpenCV/imagenes_prueba/
 __pycache__/
 *.pyc
 

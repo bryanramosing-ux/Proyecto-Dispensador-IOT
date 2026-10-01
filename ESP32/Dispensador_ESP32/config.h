@@ -109,6 +109,8 @@
 #define USAR_MONITOR_BATERIA  1
 #define VBAT_MIN            6.8f   // 2S Li-ion: 3,4 V/celda -> se deja de dispensar
 #define VBAT_HISTERESIS     0.2f   // vuelve a funcionar por encima de 7,0 V
+// Poner USAR_MONITOR_SERVO en 0 si el divisor del riel de 6 V (GPIO32) no está
+// montado (pruebas de banco): sin él la lectura es ~0 V y toda dosis daría ERROR_SERVO.
 // Detección INDIRECTA: el MG995 no informa su posición. Un bloqueo eleva la
 // corriente y hace caer el riel de 6 V; cuánto cae depende del convertidor y
 // del cableado -> umbrales PROVISIONALES, se ajustan en la Prueba 7.

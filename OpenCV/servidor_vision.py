@@ -115,7 +115,9 @@ class ServicioVision:
             "opencv": cv2.__version__,
             "modelo": Path(self.cfg.MODELO_ONNX).name,
             "camara_url": self.cfg.CAMARA_URL,
-            "camara": estado_camara(self.cfg.CAMARA_URL, 2.0),
+            # timeout corto: el ESP32 espera /status 2 s y debe poder distinguir
+            # "PC caído" de "cámara caída"
+            "camara": estado_camara(self.cfg.CAMARA_URL, 0.8),
             "clasificaciones": self.total,
             "ultima": self.ultimo,
             "umbrales": {

@@ -47,13 +47,22 @@ tiempo mínimo entre raciones, límite diario, batería y servo correctos, masco
 | 9 | "90° = 80 g" | No existe relación fija ángulo-gramos | Ración = **N ciclos**; gramos por ciclo medidos con balanza (procedimiento §23) |
 | 10 | ESP32 recibe la imagen | Innecesario y costoso en RAM | El **PC pide la foto directamente a la cámara**; el ESP32 solo recibe el JSON |
 
-**Qué está verificado y qué no.** Verificado por software en este repositorio: 17 pruebas del servicio de
-visión (incluida una prueba extremo a extremo por HTTP), clasificación correcta de fotos reales de perros y gatos
-con el modelo, 19 escenarios de la máquina de estados del ESP32 ejecutados en PC, compilación sintáctica de todo
-el firmware contra la API de Arduino-ESP32 2.x y 3.x, y 34 comprobaciones geométricas de la torre (cero
-interferencias, recorrido del alimento continuo, imprimibilidad). **Pendiente de prueba física** (no se puede
-hacer sin el hardware): compilación con la cadena de Espressif, consumos reales, calibración de posiciones y
-gramos, umbrales con la cámara instalada, comportamiento del panel. El plan de pruebas (§38) cubre cada punto.
+**Qué está verificado y qué no.** Verificado en este repositorio (y de nuevo en cada `push` por GitHub
+Actions, `.github/workflows/verificacion.yml`):
+
+* **Firmware compilado con la cadena oficial de Espressif** (Arduino-ESP32 **2.0.17** y **3.0.7**, `--warnings all`,
+  sin advertencias propias): ESP32 955 kB / 1 092 kB (72 % / 83 % de la flash), ESP32-CAM 847 kB / 1 023 kB.
+* **Firmware del ESP32 ejecutado en el emulador QEMU de Espressif**: arranca, entra en la máquina de estados y
+  responde a todos los comandos (autoprueba de 12 puntos). El emulador encontró un error real que se corrigió
+  (el botón BOOT mantenido borraba errores cada 50 ms).
+* 19 escenarios de la máquina de estados en PC; 18 pruebas del servicio de visión (incluida una extremo a
+  extremo por HTTP); **modelo real** sobre 25 imágenes públicas: 9/9 perros, 5/5 gatos y 0 errores peligrosos con
+  11 animales parecidos (lobo, coyote, dingo, zorros, hiena, puma, lince, tigre, guepardo) y un peluche.
+* 34 comprobaciones geométricas de la torre (cero interferencias, recorrido del alimento continuo, imprimibilidad).
+
+**Pendiente de prueba física** (no se puede hacer sin el hardware): consumos reales, calibración de posiciones y
+gramos, umbrales con la cámara instalada, Wi-Fi y cámara reales, comportamiento del panel. El plan de pruebas (§38)
+cubre cada punto.
 
 ## 2. Objetivo general
 
@@ -300,9 +309,18 @@ Antes del modelo, cada foto pasa un **control de calidad**: JPEG decodificable y
 `IMAGEN_INVALIDA`); brillo medio entre 35 y 225 (`IMAGEN_OSCURA` / `IMAGEN_SOBREEXPUESTA`); varianza del
 Laplaciano ≥ 40 (`IMAGEN_BORROSA`). Se toman **2 fotos** y se promedian las probabilidades de las válidas.
 
-**Resultado obtenido en este repositorio** (modelo real, fotos públicas de prueba, no fotos de la cámara):
-perros → P(perro) entre 0,77 y 0,90; gatos → P(gato) entre 0,97 y 0,99; persona y textura → `SIN_MASCOTA`.
-Matriz de confusión 8/8 correcta. **Esto no reemplaza la calibración con la cámara instalada.**
+**Resultado obtenido en este repositorio** (modelo real; `tests/descargar_imagenes_prueba.py` +
+`tests/test_modelo_real.py`):
+
+| Grupo | Imágenes | Resultado |
+|---|---|---|
+| Perros (chihuahua, beagle, fox terrier, golden, labrador, pastor alemán, husky, pug, caniche) | 9 | 9 × **PERRO** (P(perro) 0,66–1,00) |
+| Gatos (atigrado, tiger cat, persa, siamés, egipcio) | 5 | 5 × **GATO** (P(gato) 0,74–1,00) |
+| Parecidos: lobo, coyote, dingo, zorro ártico, hiena, puma, lince, tigre, guepardo, peluche, persona | 11 | 11 × **0** (`SIN_MASCOTA`; el tigre llega a P(gato) = 0,38, por debajo del umbral) |
+| Zorro rojo (foto muy oscura) | 1 | **0** (`IMAGEN_OSCURA`: lo descarta el control de calidad) |
+
+Cero decisiones peligrosas. **Aviso honesto:** son imágenes de ImageNet, el mismo conjunto con el que se entrenó el
+modelo, por lo que el resultado es optimista. **No reemplaza la calibración con fotos de la cámara instalada** (§23.5).
 
 ## 13. Comunicación entre dispositivos
 
@@ -555,6 +573,9 @@ el sensor no distingue una mascota de una persona o una caja: **por eso la decis
 * **Wi-Fi:** 802.11 b/g/n solo 2,4 GHz; picos de ≈ 240 mA al transmitir → alimentación con margen y condensadores.
 * **Conflictos detectados:** ninguno con la asignación elegida (§15).
 * **Dato a verificar:** si la placa tiene diodo entre el USB y VIN. Si no lo tiene, no conectar el USB y el bus de 5 V a la vez.
+* **Memoria:** el firmware ocupa el 72 % (núcleo 2.0.17) o el 83 % (núcleo 3.0.7) de la partición de programa por
+  defecto (1,25 MB) y ≈ 48 kB de RAM estática. Si se añaden funciones con el núcleo 3.x, elegir el esquema de
+  particiones *Huge APP*.
 
 ## 20. Análisis de la ESP32-CAM
 
@@ -741,7 +762,7 @@ stateDiagram-v2
 | Wi-Fi desconectado | `WiFi.status()` cada ciclo | ERROR_WIFI, LED parpadea | Reconexión / reinicio |
 | ESP32-CAM no responde | `/status` falla o PC devuelve 502 | ERROR_CAMARA | Reintento 30 s |
 | PC no responde | Timeout, conexión rechazada o JSON inválido | ERROR_CLASIFICACION | Reintento 30 s |
-| Servo sin alimentación | Riel < 4,6 V antes o < 1 V durante | ERROR_SERVO (bloqueante) | Revisar Buck A / cables + BOOT |
+| Servo sin alimentación | Riel < 4,6 V antes o < 1 V durante | ERROR_SERVO (bloqueante) | Revisar Buck A / cables + BOOT (una pulsación larga = un solo borrado; hay que soltar para el siguiente) |
 | Atasco | Riel < 4,2 V durante ≥ 250 ms | Retroceso ×2, luego ERROR_MECANISMO, servo liberado | Limpiar disco + BOOT |
 | Batería insuficiente | VBAT < 6,8 V | ERROR_ALIMENTACION (no dispensa) | Cargar (histéresis 0,2 V) |
 | Panel insuficiente | `v_panel` en `/status` | No bloquea (la batería alimenta) | — |
@@ -924,9 +945,10 @@ Separación de responsabilidades: **decisión** (Controlador) ≠ **hardware** (
 ```
 Proyecto-Dispensador-IOT/
 ├── README.md                          ← este documento
+├── .github/workflows/verificacion.yml ← verificación automática en cada push (Python, STL, compilación real, QEMU)
 ├── ESP32/                             ← controlador
 │   ├── Dispensador_ESP32/             (sketch: .ino + módulos .h/.cpp + config.h + secrets_ejemplo.h)
-│   ├── test_host/                     (pruebas de la máquina de estados y compilación con stubs)
+│   ├── test_host/                     (máquina de estados en PC, stubs, autoprueba en QEMU)
 │   ├── platformio.ini
 │   └── README.md
 ├── ESP32_CAM/                         ← cámara
@@ -937,7 +959,7 @@ Proyecto-Dispensador-IOT/
 │   ├── servidor_vision.py  clasificador.py  config.py
 │   ├── descargar_modelo.py  probar_imagenes.py  capturar_dataset.py  simulador_camara.py
 │   ├── model/                         (modelo descargado, no se versiona)
-│   ├── tests/test_vision.py
+│   ├── tests/                         (test_vision.py, test_modelo_real.py, descargar_imagenes_prueba.py)
 │   ├── requirements.txt
 │   └── README.md
 ├── Mechanical/                        ← diseño 3D
@@ -1059,13 +1081,18 @@ Registrar cada prueba (fecha, valores, foto). **Prueba 0** (añadida): alimentac
 | **8. Sistema completo** | Funcionamiento real | 20 aproximaciones (perro/peluche, gato/foto, persona, nadie); 1 h continua con batería | Dispensa solo a perro/gato, respeta cooldown | 0 dispensaciones indebidas; ≥ 90 % correctas; sin reinicios en 1 h | Repeticiones, reinicios | Ajustar cooldown/rearmado; revisar alimentación |
 | **E. Panel** (añadida) | Aporte real | Medir V<sub>oc</sub>, I<sub>sc</sub> al sol; `v_panel` en `/status`; corriente de carga | ≈ 0,3 W pico al sol, ≈ 0 en interior | Medición registrada y coherente con §21 | Elevador oscila | Documentarlo; mejora con MPPT |
 
-**Pruebas ya ejecutadas sin hardware (reproducibles):**
+**Pruebas ya ejecutadas sin hardware (reproducibles; también corren solas en GitHub Actions en cada `push`):**
 
 ```bash
-cd OpenCV && python -m unittest discover -s tests -v      # 17 OK
-cd ESP32/test_host && make                                # 19 escenarios OK
-cd ESP32/test_host && make sintaxis                       # firmware compila contra API 2.x y 3.x (stubs)
-cd Mechanical && python generar_stl.py                    # 34 verificaciones OK
+cd OpenCV && python -m unittest discover -s tests -v      # 18 pruebas (la del modelo real se activa con imágenes)
+python tests/descargar_imagenes_prueba.py imagenes_prueba && \
+  DISPENSADOR_IMAGENES_PRUEBA=imagenes_prueba python -m unittest tests.test_modelo_real -v   # 25 imágenes, 0 peligrosas
+cd ESP32/test_host && make                                # 19 escenarios de la máquina de estados
+cd ESP32/test_host && make sintaxis                       # compilación rápida contra stubs (API 2.x y 3.x)
+arduino-cli compile --fqbn esp32:esp32:esp32doit-devkit-v1 ESP32/Dispensador_ESP32           # compilación real
+arduino-cli compile --fqbn esp32:esp32:esp32cam:PartitionScheme=huge_app ESP32_CAM/Camara_ESP32CAM
+ESP32/test_host/qemu_autoprueba.sh ...                    # firmware real en el emulador QEMU (ver ESP32/README.md)
+cd Mechanical && python generar_stl.py                    # 34 verificaciones geométricas
 ```
 
 ## 39. Problemas posibles
@@ -1146,7 +1173,8 @@ Leyenda: ✅ verificado en este repositorio · 🔧 verificado en diseño, **pen
 
 **SOFTWARE**
 - ✅ ESP32 controla el sistema y toma la decisión final (19 escenarios probados en PC).
-- ✅ ESP32-CAM captura imágenes (`/capture`). 🔧 Compilación real con la cadena de Espressif (se verificó con stubs).
+- ✅ ESP32-CAM captura imágenes (`/capture`). ✅ Ambos firmwares compilan con la cadena oficial de Espressif
+  (núcleos 2.0.17 y 3.0.7) y el del ESP32 arranca y funciona en el emulador QEMU. 🔧 Cámara y Wi-Fi reales.
 - ✅ Python recibe/procesa imágenes (prueba extremo a extremo HTTP con cámara simulada).
 - ✅ OpenCV participa realmente (decodificación, calidad, CLAHE, blob y ejecución de la red con `cv2.dnn`).
 - ✅ La clasificación devuelve 1 o 2 (y 0 cuando no debe dispensarse; probado con 2000 casos aleatorios).

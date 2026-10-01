@@ -57,13 +57,22 @@ class HardwareReal : public Hardware {
     digitalWrite(PIN_LED, LOW);
     return r;
   }
+  // Una pulsación larga = UN solo reset. Hay que soltar el botón para el siguiente:
+  // así un botón mantenido (o GPIO0 a nivel bajo por una falla) no borra errores
+  // de seguridad una y otra vez.
   bool botonResetPulsado() override {
     if (digitalRead(PIN_BOTON) == HIGH) {
       tBoton_ = 0;
+      consumido_ = false;
       return false;
     }
+    if (consumido_) return false;
     if (tBoton_ == 0) tBoton_ = millis();
-    return millis() - tBoton_ >= T_BOTON_RESET_MS;
+    if (millis() - tBoton_ >= T_BOTON_RESET_MS) {
+      consumido_ = true;
+      return true;
+    }
+    return false;
   }
   void reiniciar() override {
     delay(200);
@@ -75,6 +84,7 @@ class HardwareReal : public Hardware {
 
  private:
   uint32_t tBoton_ = 0;
+  bool consumido_ = false;
 };
 
 HardwareReal hardware;
@@ -232,6 +242,16 @@ void setup() {
   red.iniciarServidorEstado(estadoJson);
   controlador.iniciar();
   Serial.println(F("Escriba AYUDA en el monitor serie para ver los comandos."));
+#ifdef SIMULACION_QEMU
+  // Autoprueba para el emulador (ver ESP32/test_host/qemu_autoprueba.sh)
+  const char* pruebas[] = {"AYUDA", "ESTADO", "DIST", "ENERGIA", "SERVO 1200", "SERVO 3000",
+                           "CICLO 1", "CLASIFICAR", "RESET", "ESTADO"};
+  for (const char* p : pruebas) {
+    Serial.printf("> %s\n", p);
+    procesarComando(String(p));
+  }
+  Serial.println(F("AUTOPRUEBA_FIN"));
+#endif
 }
 
 void loop() {

@@ -6,6 +6,13 @@
 
 #include "config.h"
 
+// SIMULACION_QEMU: solo para arrancar el firmware en el emulador QEMU de Espressif,
+// que no emula la radio Wi-Fi. Nunca definirlo al compilar para la placa real.
+#ifdef SIMULACION_QEMU
+void Red::iniciar(const char*, const char*) { Serial.println("SIMULACION_QEMU: Wi-Fi desactivado"); }
+bool Red::conectado() { return false; }
+void Red::reconectar() { Serial.println("Wi-Fi: reintentando conexion... (simulado)"); }
+#else
 void Red::iniciar(const char* ssid, const char* clave) {
   WiFi.persistent(false);
   WiFi.mode(WIFI_STA);
@@ -28,10 +35,11 @@ void Red::iniciar(const char* ssid, const char* clave) {
 bool Red::conectado() { return WiFi.status() == WL_CONNECTED; }
 
 void Red::reconectar() {
+  // Sin WiFi.disconnect(): cortaría un intento de asociación que todavía está en curso.
   Serial.println("Wi-Fi: reintentando conexion...");
-  WiFi.disconnect();
   WiFi.reconnect();
 }
+#endif
 
 bool Red::getSimple(const String& url, uint32_t timeoutMs) {
   if (!conectado()) return false;
@@ -93,6 +101,9 @@ RespuestaClasificacion Red::clasificar(int distanciaCm) {
 
 void Red::iniciarServidorEstado(GeneradorEstado generador) {
   generador_ = generador;
+#ifdef SIMULACION_QEMU
+  return;  // sin Wi-Fi no hay pila TCP/IP en el emulador
+#endif
   servidor_.on("/status", HTTP_GET, [this]() {
     servidor_.send(200, "application/json", generador_ ? generador_() : String("{}"));
   });
@@ -100,4 +111,8 @@ void Red::iniciarServidorEstado(GeneradorEstado generador) {
   servidor_.begin();
 }
 
-void Red::atender() { servidor_.handleClient(); }
+void Red::atender() {
+#ifndef SIMULACION_QEMU
+  servidor_.handleClient();
+#endif
+}

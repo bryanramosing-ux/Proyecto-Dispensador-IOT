@@ -39,7 +39,11 @@ si dispensa y mueve el MG995. Implementa la máquina de estados con manejo de er
 
 No existe un comando remoto de "dar comida": dispensar manualmente exige acceso físico al USB.
 
-## Verificación en PC (sin hardware)
+## Verificación sin hardware
+
+Todo esto corre automáticamente en GitHub Actions (`.github/workflows/verificacion.yml`) en cada `push`.
+
+### 1. Lógica en el PC (segundos)
 
 ```bash
 cd ESP32/test_host
@@ -48,5 +52,43 @@ git clone --depth 1 https://github.com/bblanchon/ArduinoJson
 make sintaxis              # compila todo el firmware (ESP32 y ESP32-CAM) contra stubs de Arduino, API núcleo 2.x y 3.x
 ```
 
-`make sintaxis` detecta errores de C++ y de uso de API, pero **no reemplaza** la
-compilación real con la cadena de herramientas de Espressif (Arduino IDE / PlatformIO).
+### 2. Compilación real con la cadena de Espressif
+
+```bash
+URL=https://espressif.github.io/arduino-esp32/package_esp32_index.json
+arduino-cli core install esp32:esp32@3.0.7 --additional-urls $URL     # o 2.0.17
+arduino-cli lib install "ArduinoJson@7.4.2"
+arduino-cli compile --fqbn esp32:esp32:esp32doit-devkit-v1 --warnings all ESP32/Dispensador_ESP32
+arduino-cli compile --fqbn "esp32:esp32:esp32cam:PartitionScheme=huge_app" --warnings all ESP32_CAM/Camara_ESP32CAM
+```
+
+| Núcleo | ESP32 (flash / RAM estática) | ESP32-CAM (flash / RAM estática) |
+|---|---|---|
+| 2.0.17 | 955 kB (72 %) / 48 kB | 847 kB (26 %) / 50 kB |
+| 3.0.7 | 1 092 kB (83 %) / 48 kB | 1 023 kB (32 %) / 50 kB |
+
+La única advertencia es la intencional de `secrets.h` cuando todavía no se creó.
+
+### 3. Firmware real en el emulador QEMU de Espressif
+
+QEMU emula el ESP32 (CPU, memoria flash, temporizadores, GPIO, PWM) pero **no la radio Wi-Fi ni el ADC**. La
+variante `-DSIMULACION_QEMU` reemplaza solo esas dos partes (Wi-Fi "desconectado", tensiones nominales); todo lo
+demás es el código real. En `setup()` ejecuta una autoprueba (AYUDA, ESTADO, DIST, ENERGIA, SERVO, CICLO,
+CLASIFICAR, RESET) que `qemu_autoprueba.sh` verifica:
+
+```bash
+arduino-cli compile --fqbn esp32:esp32:esp32doit-devkit-v1 --build-path build/qemu \
+  --build-property "compiler.cpp.extra_flags=-DSIMULACION_QEMU" ESP32/Dispensador_ESP32
+# QEMU: https://github.com/espressif/qemu/releases (paquete qemu-xtensa-softmmu, Linux; requiere libslirp0)
+ESP32/test_host/qemu_autoprueba.sh build/qemu \
+  ~/.arduino15/packages/esp32/hardware/esp32/2.0.17/tools/partitions/boot_app0.bin qemu/bin/qemu-system-xtensa
+```
+
+Resultado: `AUTOPRUEBA QEMU: OK` (12 comprobaciones; un ciclo de dosis completo tarda 3,8 s). Esta prueba
+detectó y permitió corregir un error real: con el botón BOOT mantenido (o GPIO0 a nivel bajo) los errores se
+borraban cada 50 ms; ahora cada pulsación larga produce un solo borrado.
+
+**Nunca** compilar con `SIMULACION_QEMU` para la placa real: desactiva el Wi-Fi y las mediciones.
+
+Lo que ninguna de estas pruebas sustituye: Wi-Fi, cámara, HC-SR04, servo y tensiones reales (plan de pruebas del
+README principal, §38).
