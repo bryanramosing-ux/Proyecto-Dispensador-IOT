@@ -1,0 +1,11 @@
+fecha,tipo_alimento,tamano_grano_mm,nivel_tolva,pulso_llenado_us,pulso_descarga_us,t_llenado_ms,t_descarga_ms,ciclos,repeticion,masa_g,observaciones
+,,,lleno,,,,,1,1,,
+,,,lleno,,,,,1,2,,
+,,,lleno,,,,,1,3,,
+,,,lleno,,,,,1,4,,
+,,,lleno,,,,,1,5,,
+,,,medio,,,,,1,6,,
+,,,medio,,,,,1,7,,
+,,,medio,,,,,1,8,,
+,,,bajo,,,,,1,9,,
+,,,bajo,,,,,1,10,,

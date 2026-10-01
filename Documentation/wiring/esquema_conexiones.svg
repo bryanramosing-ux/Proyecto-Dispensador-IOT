@@ -1,0 +1,251 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 1160" width="1600" height="1160" font-family="Arial, Helvetica, sans-serif" font-size="13">
+  <title>Esquema de conexiones - Dispensador IoT (ESP32, ESP32-CAM, HC-SR04, MG995, energía solar)</title>
+  <defs>
+    <marker id="flecha" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#333"/>
+    </marker>
+    <g id="gnd"><line x1="-10" y1="0" x2="10" y2="0" stroke="#000" stroke-width="2"/><line x1="-6" y1="5" x2="6" y2="5" stroke="#000" stroke-width="2"/><line x1="-2" y1="10" x2="2" y2="10" stroke="#000" stroke-width="2"/></g>
+  </defs>
+  <style>
+    .blk{fill:#f7f9fc;stroke:#34495e;stroke-width:2;rx:6}
+    .aux{fill:#fff8e6;stroke:#b9770e;stroke-width:2;stroke-dasharray:6 3}
+    .t{font-weight:bold;font-size:15px}
+    .s{font-size:12px;fill:#444}
+    .pin{font-size:12px;font-family:monospace}
+    .vbat{stroke:#8e44ad;stroke-width:3;fill:none}
+    .v6{stroke:#d62728;stroke-width:3;fill:none}
+    .v5{stroke:#ff7f0e;stroke-width:3;fill:none}
+    .gnd{stroke:#000;stroke-width:2.5;fill:none}
+    .sig{stroke:#1f77b4;stroke-width:2;fill:none}
+    .echo5{stroke:#8c564b;stroke-width:2;fill:none}
+    .adc{stroke:#2ca02c;stroke-width:2;fill:none}
+    .pv{stroke:#b9770e;stroke-width:2.5;fill:none}
+    .wifi{stroke:#7f8c8d;stroke-width:2;stroke-dasharray:7 5;fill:none}
+    .res{fill:#fff;stroke:#000;stroke-width:1.5}
+  </style>
+
+  <rect x="0" y="0" width="1600" height="1160" fill="#ffffff"/>
+  <text x="800" y="30" text-anchor="middle" font-size="22" font-weight="bold">Dispensador IoT · Esquema de conexiones y alimentación (v1)</text>
+  <text x="800" y="52" text-anchor="middle" class="s">Líneas: morado = batería 2S (6,0–8,4 V) · rojo = 6,0 V servo · naranja = 5,0 V lógica · negro = GND común · azul = señal 3,3 V · marrón = ECHO 5 V · verde = medición ADC</text>
+
+  <!-- ======================= ENERGÍA ======================= -->
+  <rect x="20" y="70" width="410" height="640" fill="none" stroke="#57b36a" stroke-width="2" stroke-dasharray="4 4" rx="10"/>
+  <text x="30" y="92" class="t" fill="#2e7d32">MÓDULO DE ENERGÍA (01 Base + 16 cajón)</text>
+
+  <rect class="blk" x="40" y="105" width="190" height="60"/>
+  <text x="135" y="128" text-anchor="middle" class="t">PANEL SOLAR</text>
+  <text x="135" y="148" text-anchor="middle" class="s">≈3 V · 100 mA · ≈0,3 W (medir)</text>
+
+  <rect class="aux" x="40" y="190" width="190" height="50"/>
+  <text x="135" y="210" text-anchor="middle" class="t">D1 Schottky 1N5817</text>
+  <text x="135" y="228" text-anchor="middle" class="s">anti-retorno</text>
+
+  <rect class="aux" x="40" y="265" width="190" height="55"/>
+  <text x="135" y="287" text-anchor="middle" class="t">Elevador MT3608</text>
+  <text x="135" y="307" text-anchor="middle" class="s">ajustar 5,0 V sin carga</text>
+
+  <rect class="aux" x="40" y="345" width="190" height="70"/>
+  <text x="135" y="368" text-anchor="middle" class="t">Cargador 2S USB-C</text>
+  <text x="135" y="386" text-anchor="middle" class="s">entrada 5 V → CC/CV 8,4 V</text>
+  <text x="135" y="403" text-anchor="middle" class="s">(configurado para 2 celdas)</text>
+
+  <rect class="aux" x="265" y="345" width="150" height="70"/>
+  <text x="340" y="370" text-anchor="middle" class="t">USB-C 5 V</text>
+  <text x="340" y="390" text-anchor="middle" class="s">cargador de pared</text>
+  <text x="340" y="405" text-anchor="middle" class="s">(carga principal)</text>
+  <path class="v5" d="M265,380 H230"/>
+
+  <rect class="aux" x="40" y="440" width="190" height="70"/>
+  <text x="135" y="463" text-anchor="middle" class="t">BMS 2S (con balanceo)</text>
+  <text x="135" y="482" text-anchor="middle" class="s">B+ · BM · B− · P+ · P−</text>
+  <text x="135" y="499" text-anchor="middle" class="s">corte sobrecarga/descarga</text>
+
+  <rect class="aux" x="265" y="440" width="150" height="70"/>
+  <text x="340" y="465" text-anchor="middle" class="t">2 × 18650</text>
+  <text x="340" y="484" text-anchor="middle" class="s">Li-ion en serie (2S)</text>
+  <text x="340" y="500" text-anchor="middle" class="s">7,4 V nominal</text>
+  <path class="vbat" d="M265,465 H230"/><path class="vbat" d="M265,485 H230"/>
+
+  <rect class="aux" x="40" y="535" width="190" height="40"/>
+  <text x="135" y="560" text-anchor="middle" class="t">F1 fusible 4 A (lento)</text>
+  <rect class="aux" x="40" y="595" width="190" height="40"/>
+  <text x="135" y="620" text-anchor="middle" class="t">S1 interruptor general</text>
+
+  <!-- cadena solar -->
+  <path class="pv" d="M135,165 V190" marker-end="url(#flecha)"/>
+  <path class="pv" d="M135,240 V265" marker-end="url(#flecha)"/>
+  <path class="v5" d="M135,320 V345" marker-end="url(#flecha)"/>
+  <path class="vbat" d="M135,415 V440" marker-end="url(#flecha)"/>
+  <path class="vbat" d="M135,510 V535"/>
+  <path class="vbat" d="M135,575 V595"/>
+  <path class="vbat" d="M135,635 V665 H470"/>
+  <text x="150" y="660" class="s" fill="#8e44ad">VBAT (P+) 6,0–8,4 V</text>
+
+  <!-- medición del panel -->
+  <path class="pv" d="M230,135 H300 V170 H600"/>
+  <text x="305" y="162" class="s" fill="#b9770e">V_panel (antes de D1)</text>
+
+  <!-- ======================= CONVERSIÓN ======================= -->
+  <path class="vbat" d="M470,665 V250"/>
+  <circle cx="470" cy="665" r="4" fill="#8e44ad"/>
+
+  <rect class="aux" x="500" y="225" width="200" height="75"/>
+  <text x="600" y="248" text-anchor="middle" class="t">Buck B → 5,0 V lógica</text>
+  <text x="600" y="267" text-anchor="middle" class="s">≥ 2–3 A (LM2596 / MP1584)</text>
+  <text x="600" y="285" text-anchor="middle" class="s">C 470 µF a la salida</text>
+  <path class="vbat" d="M470,262 H500"/>
+
+  <rect class="aux" x="500" y="575" width="200" height="75"/>
+  <text x="600" y="598" text-anchor="middle" class="t">Buck A → 6,0 V servo</text>
+  <text x="600" y="617" text-anchor="middle" class="s">≥ 3 A continuos (XL4015)</text>
+  <text x="600" y="635" text-anchor="middle" class="s">exclusivo del MG995</text>
+  <path class="vbat" d="M470,612 H500"/>
+
+  <!-- bus 5 V -->
+  <path class="v5" d="M700,262 H1250"/>
+  <text x="720" y="255" class="s" fill="#ff7f0e">BUS 5,0 V</text>
+
+  <!-- divisores -->
+  <rect class="aux" x="600" y="330" width="230" height="215"/>
+  <text x="715" y="352" text-anchor="middle" class="t">Divisores de medición</text>
+  <text x="612" y="377" class="pin">VBAT  100k/33k → 2,08 V @8,4 V</text>
+  <text x="612" y="397" class="pin">V6    100k/33k → 1,49 V @6,0 V</text>
+  <text x="612" y="417" class="pin">Vpan  100k/100k→ 2,00 V @4,0 V</text>
+  <text x="612" y="440" class="s">100 nF de cada salida a GND</text>
+  <text x="612" y="458" class="s">montados en el cajón de energía:</text>
+  <text x="612" y="476" class="s">por el cable solo viaja una señal</text>
+  <text x="612" y="494" class="s">de alta impedancia (no 8,4 V)</text>
+  <path class="vbat" d="M470,375 H600"/>
+  <path class="v6" d="M760,612 V560 H720 V545"/>
+  <path class="pv" d="M600,170 H770 V330"/>
+  <path class="adc" d="M830,377 H900"/>
+  <path class="adc" d="M830,397 H900"/>
+  <path class="adc" d="M830,417 H900"/>
+
+  <!-- ======================= ESP32 ======================= -->
+  <rect class="blk" x="900" y="300" width="230" height="420"/>
+  <text x="1015" y="325" text-anchor="middle" class="t">ESP32 DevKit V1</text>
+  <text x="1015" y="343" text-anchor="middle" class="s">(30 pines · lógica 3,3 V)</text>
+  <text x="908" y="381" class="pin">GPIO35 (ADC1) VBAT</text>
+  <text x="908" y="401" class="pin">GPIO32 (ADC1) V6</text>
+  <text x="908" y="421" class="pin">GPIO33 (ADC1) Vpan</text>
+  <text x="908" y="276" class="pin" fill="#ff7f0e"> </text>
+  <text x="908" y="470" class="pin">VIN (5 V)</text>
+  <text x="908" y="690" class="pin">GND</text>
+  <text x="1122" y="381" text-anchor="end" class="pin">GPIO26 TRIG</text>
+  <text x="1122" y="441" text-anchor="end" class="pin">GPIO34 ECHO*</text>
+  <text x="1122" y="571" text-anchor="end" class="pin">GPIO25 PWM</text>
+  <text x="1015" y="520" text-anchor="middle" class="s">GPIO2 = LED placa</text>
+  <text x="1015" y="538" text-anchor="middle" class="s">GPIO0 = botón BOOT</text>
+  <text x="1015" y="556" text-anchor="middle" class="s">*34: solo entrada</text>
+  <text x="1015" y="620" text-anchor="middle" class="s">3V3: NO alimenta cargas</text>
+  <text x="1015" y="638" text-anchor="middle" class="s">externas (ni servo ni sensor)</text>
+  <path class="v5" d="M880,262 V466 H900"/>
+  <circle cx="880" cy="262" r="4" fill="#ff7f0e"/>
+
+  <!-- ======================= HC-SR04 ======================= -->
+  <rect class="blk" x="1330" y="330" width="200" height="160"/>
+  <text x="1430" y="355" text-anchor="middle" class="t">HC-SR04</text>
+  <text x="1430" y="373" text-anchor="middle" class="s">alimentado a 5 V</text>
+  <text x="1338" y="400" class="pin">VCC</text>
+  <text x="1338" y="380" class="pin"> </text>
+  <text x="1338" y="420" class="pin">TRIG</text>
+  <text x="1338" y="440" class="pin">ECHO</text>
+  <text x="1338" y="475" class="pin">GND</text>
+  <path class="v5" d="M1250,262 V396 H1330"/>
+  <circle cx="1250" cy="262" r="4" fill="#ff7f0e"/>
+  <path class="sig" d="M1130,377 H1200 V416 H1330"/>
+  <!-- ECHO: R1 1k serie + R2 2k a GND -->
+  <path class="echo5" d="M1330,436 H1300"/>
+  <rect class="res" x="1250" y="429" width="50" height="14"/>
+  <text x="1275" y="425" text-anchor="middle" class="s">R1 1 kΩ</text>
+  <path class="sig" d="M1250,436 H1130"/>
+  <circle cx="1220" cy="436" r="4" fill="#1f77b4"/>
+  <path class="sig" d="M1220,436 V455"/>
+  <rect class="res" x="1213" y="455" width="14" height="40"/>
+  <text x="1170" y="480" class="s">R2 2 kΩ</text>
+  <path class="gnd" d="M1220,495 V510"/>
+  <use href="#gnd" x="1220" y="510"/>
+  <text x="1140" y="465" class="s" fill="#1f77b4">≈3,3 V</text>
+  <path class="gnd" d="M1330,471 H1310 V1010"/>
+
+  <!-- ======================= MG995 ======================= -->
+  <rect class="blk" x="1330" y="540" width="200" height="120"/>
+  <text x="1430" y="565" text-anchor="middle" class="t">MG995 (180°)</text>
+  <text x="1338" y="590" class="pin">SEÑAL (naranja)</text>
+  <text x="1338" y="615" class="pin">V+ (rojo)</text>
+  <text x="1338" y="645" class="pin">GND (marrón)</text>
+  <path class="sig" d="M1130,567 H1190"/>
+  <rect class="res" x="1190" y="580" width="0" height="0"/>
+  <rect class="res" x="1240" y="579" width="50" height="14"/>
+  <path class="sig" d="M1190,567 V586 H1240"/>
+  <text x="1265" y="575" text-anchor="middle" class="s">330 Ω</text>
+  <path class="sig" d="M1290,586 H1330"/>
+  <circle cx="1170" cy="567" r="4" fill="#1f77b4"/>
+  <path class="sig" d="M1170,567 V600"/>
+  <rect class="res" x="1163" y="600" width="14" height="40"/>
+  <text x="1135" y="676" class="s">10 kΩ</text>
+  <path class="gnd" d="M1170,640 V1010"/>
+  <path class="v6" d="M700,612 H860 V745 H1290 V611 H1330"/>
+  <text x="880" y="765" class="s" fill="#d62728">6,0 V servo (NO pasa por el ESP32)</text>
+  <!-- condensador del servo -->
+  <circle cx="1230" cy="745" r="4" fill="#d62728"/>
+  <path class="v6" d="M1230,745 V757"/>
+  <line x1="1215" y1="759" x2="1245" y2="759" stroke="#000" stroke-width="2.5"/>
+  <line x1="1215" y1="767" x2="1245" y2="767" stroke="#000" stroke-width="2.5"/>
+  <path class="gnd" d="M1230,767 V1010"/>
+  <text x="960" y="790" class="s">C1 1000–2200 µF ≥10 V</text>
+  <text x="960" y="806" class="s">junto al conector del servo</text>
+  <path class="gnd" d="M1330,641 H1320 V1010"/>
+
+  <!-- ======================= ESP32-CAM ======================= -->
+  <rect class="blk" x="1330" y="780" width="200" height="130"/>
+  <text x="1430" y="805" text-anchor="middle" class="t">ESP32-CAM</text>
+  <text x="1430" y="823" text-anchor="middle" class="s">AI-Thinker + OV2640</text>
+  <text x="1338" y="850" class="pin">5V</text>
+  <text x="1338" y="895" class="pin">GND</text>
+  <text x="1430" y="872" text-anchor="middle" class="s">sin cables de datos:</text>
+  <text x="1430" y="888" text-anchor="middle" class="s">solo Wi-Fi</text>
+  <path class="v5" d="M1250,396 V846 H1330"/>
+  <circle cx="1285" cy="846" r="4" fill="#ff7f0e"/>
+  <path class="v5" d="M1285,846 V858"/>
+  <line x1="1272" y1="860" x2="1298" y2="860" stroke="#000" stroke-width="2.5"/>
+  <line x1="1272" y1="868" x2="1298" y2="868" stroke="#000" stroke-width="2.5"/>
+  <path class="gnd" d="M1285,868 V905 H1300"/>
+  <text x="960" y="868" class="s">C3 470 µF + 100 nF</text>
+  <text x="960" y="884" class="s">junto a la ESP32-CAM</text>
+  <path class="gnd" d="M1330,891 H1300 V1010"/>
+
+  <!-- ======================= GND COMÚN ======================= -->
+  <path class="gnd" d="M600,650 V1010 H1320"/>
+  <path class="gnd" d="M510,300 V318 H485 V1010"/>
+  <path class="gnd" d="M880,686 H900"/>
+  <path class="gnd" d="M880,686 V1010"/>
+  <path class="gnd" d="M715,545 V1010"/>
+  <path class="gnd" d="M135,710 V1010 H600"/>
+  <circle cx="600" cy="1010" r="6" fill="#000"/>
+  <text x="610" y="1035" class="s">Punto estrella de GND (salidas de los convertidores; P− del BMS)</text>
+  <text x="145" y="740" class="s">P− del BMS</text>
+
+  <!-- ======================= RED ======================= -->
+  <rect class="blk" x="900" y="80" width="190" height="70"/>
+  <text x="995" y="105" text-anchor="middle" class="t">Router / hotspot</text>
+  <text x="995" y="125" text-anchor="middle" class="s">Wi-Fi 2,4 GHz WPA2</text>
+  <rect class="blk" x="1150" y="70" width="380" height="110"/>
+  <text x="1340" y="95" text-anchor="middle" class="t">PC / Notebook  ·  192.168.1.50:8000</text>
+  <text x="1340" y="115" text-anchor="middle" class="s">Python 3 + OpenCV (cv2.dnn) + MobileNetV2</text>
+  <text x="1340" y="135" text-anchor="middle" class="s">GET /classify → {"clase": 1|2|0}</text>
+  <text x="1340" y="155" text-anchor="middle" class="s">pide la foto a la cámara: GET 192.168.1.51/capture</text>
+  <path class="wifi" d="M1015,300 V150"/>
+  <path class="wifi" d="M1090,115 H1150"/>
+  <path class="wifi" d="M1530,845 H1580 V62 H995 V80"/>
+  <text x="1030" y="200" class="s">ESP32 · 192.168.1.52</text>
+  <text x="1565" y="420" class="s" transform="rotate(90 1565 420)">ESP32-CAM · 192.168.1.51 (Wi-Fi)</text>
+
+  <!-- ======================= NOTAS ======================= -->
+  <rect x="20" y="1050" width="1560" height="100" fill="#fdecea" stroke="#c0392b" stroke-width="1.5" rx="6"/>
+  <text x="35" y="1073" font-weight="bold" fill="#c0392b">REGLAS DE SEGURIDAD</text>
+  <text x="35" y="1093" class="s">1) Ajustar Buck A a 6,0 V y Buck B a 5,0 V con multímetro ANTES de conectar cargas. 2) El MG995 nunca se alimenta desde un GPIO, desde 3V3 ni desde el VIN del ESP32. 3) ECHO (5 V) solo llega al ESP32 a través de R1/R2.</text>
+  <text x="35" y="1113" class="s">4) Todas las tierras se unen (GND común) para que la señal PWM y el ECHO tengan la misma referencia. 5) Al programar el ESP32 por USB, desconectar el bus de 5 V de VIN si la placa no tiene diodo de protección (depende del clon).</text>
+  <text x="35" y="1133" class="s">6) La batería 2S (hasta 8,4 V) nunca se conecta directa al MG995 (máx. 7,2 V) ni a los módulos de 5 V. 7) Bloques punteados = COMPONENTES AUXILIARES DE ALIMENTACIÓN (no están en la lista principal, son necesarios).</text>
+</svg>

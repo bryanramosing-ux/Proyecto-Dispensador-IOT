@@ -1,0 +1,15 @@
+# Credenciales Wi-Fi (copiar secrets_ejemplo.h -> secrets.h)
+**/secrets.h
+
+# Modelo (se descarga con OpenCV/descargar_modelo.py)
+OpenCV/model/*.onnx
+OpenCV/model/imagenet_classes.txt
+OpenCV/capturas/
+OpenCV/dataset/
+__pycache__/
+*.pyc
+
+# Compilación
+.pio/
+ESP32/test_host/test_controlador
+ESP32/test_host/ArduinoJson/
