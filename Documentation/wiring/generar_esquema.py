@@ -141,7 +141,7 @@ def dibujar(p):
              ["servidor_vision.py (Python + OpenCV + MobileNetV2)",
               "GET /classify → {\"clase\": 0 | 1 | 2}   (1 = PERRO, 2 = GATO)",
               "POST /alerta ← nivel de la tolva · GET / = panel web"], "red")
-    d.bloque(1600, 85, 360, 80, "Celular (opcional)", ["app ntfy: «Queda poca comida en la tolva»"], "red")
+    d.bloque(1600, 85, 360, 80, "Celular (opcional)", ["app ntfy: «La comida del dispensador", "se está acabando (nivel ~18 %)»"], "red")
     d.linea([(990, 125), (1080, 125)], "wifi")
     d.linea([(1510, 125), (1600, 125)], "wifi")
     d.texto(1555, 116, "Internet", "s", "middle")

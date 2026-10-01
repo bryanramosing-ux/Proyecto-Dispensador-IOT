@@ -187,6 +187,8 @@ class TestServidorExtremoAExtremo(unittest.TestCase):
 
     def test_alerta_invalida(self):
         self.assertEqual(self.post("/alerta", {"tipo": "OTRA_COSA"})[0], 400)
+        self.assertEqual(self.post("/alerta", ["COMIDA_BAJA"])[0], 400)                  # no es un objeto
+        self.assertEqual(self.post("/alerta", {"tipo": "COMIDA_BAJA", "nivel": {}})[0], 400)
 
     def test_panel_html(self):
         with urllib.request.urlopen(self.url + "/", timeout=10) as r:

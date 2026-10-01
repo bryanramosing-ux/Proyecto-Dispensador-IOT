@@ -139,8 +139,8 @@
 #define N_MUESTRAS_NIVEL          5    // mediana de 5 disparos
 // Distancias por defecto (sensor -> superficie). Se CALIBRAN con los comandos serie
 // "NIVEL VACIO" y "NIVEL LLENO" y quedan guardadas en la memoria flash (NVS).
-#define DIST_TOLVA_VACIA_CM   16.0f    // PROVISIONAL: tolva vacía (medida en el modelo 3D)
-#define DIST_TOLVA_LLENA_CM    3.0f    // PROVISIONAL: alimento en la marca MAX
+#define DIST_TOLVA_VACIA_CM   15.0f    // PROVISIONAL: transductores -> boca del embudo en el modelo 3D
+#define DIST_TOLVA_LLENA_CM    3.0f    // PROVISIONAL: transductores -> surco MAX (modelo 3D)
 
 #define T_BOTON_RESET_MS   2000UL  // pulsación larga del botón BOOT
 #define INTERVALO_CICLO_MS   50UL  // periodo del lazo principal

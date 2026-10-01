@@ -39,7 +39,8 @@
 <text x="1295.0" y="148" class="s" text-anchor="middle" >POST /alerta ← nivel de la tolva · GET / = panel web</text>
 <rect x="1600" y="85" width="360" height="80" rx="6" class="red"/>
 <text x="1780.0" y="105" class="t" text-anchor="middle" >Celular (opcional)</text>
-<text x="1780.0" y="123" class="s" text-anchor="middle" >app ntfy: «Queda poca comida en la tolva»</text>
+<text x="1780.0" y="123" class="s" text-anchor="middle" >app ntfy: «La comida del dispensador</text>
+<text x="1780.0" y="139" class="s" text-anchor="middle" >se está acabando (nivel ~18 %)»</text>
 <path d="M990,125 L1080,125" class="wifi"/>
 <path d="M1510,125 L1600,125" class="wifi"/>
 <text x="1555" y="116" class="s" text-anchor="middle" >Internet</text>

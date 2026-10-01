@@ -4,7 +4,9 @@
 
 Proyecto universitario para feria de informática. Este repositorio contiene **todo** lo necesario para
 construirlo y probarlo: firmware del ESP32 y de la ESP32-CAM, servidor de visión en Python + OpenCV,
-19 piezas STL paramétricas, esquema eléctrico, cálculo energético, procedimientos de calibración y plan de pruebas.
+22 piezas STL paramétricas listas para la **Elegoo Neptune 4 Plus**, [manual de armado](Documentation/manual_armado/Manual_de_Armado.md)
+([PDF](Documentation/manual_armado/Manual_de_Armado.pdf)), esquema eléctrico completo, cálculo energético, procedimientos
+de calibración y plan de pruebas.
 
 > **Cómo se elaboró (técnica ROL – TAREA – CONTEXTO).**
 > **ROL:** equipo de ingeniería electrónica, sistemas embebidos/IoT, visión artificial, mecánica/diseño 3D,
@@ -15,6 +17,18 @@ construirlo y probarlo: firmware del ESP32 y de la ESP32-CAM, servidor de visió
 >
 > **Regla de lectura:** todo valor marcado **PROVISIONAL** o **VERIFICAR** no es un dato de fábrica; se
 > obtiene en la calibración. Los valores "típicos" se citan con su fuente y deben medirse.
+
+> **Recomendaciones del profesor incorporadas (versión 2):**
+> 1. **El panel solar va aparte**, en una **estación solar remota** (piezas 12a + 12b) que se coloca donde haya sol, a
+>    3–5 m, unida al cajón de energía por un cable con conector **GX12**. La bandeja se orienta de 0° a 75° (§21, §31).
+> 2. **Sensor ultrasónico dentro de la tolva:** un **segundo HC-SR04** en la tapa mide el nivel de alimento y el ESP32
+>    envía una **alerta** al PC (panel web y, opcionalmente, notificación al celular con ntfy) cuando la comida se está
+>    acabando (§18, §24, §25).
+>
+> Además: todas las piezas se verificaron para el volumen de la **Elegoo Neptune 4 Plus** (320 × 320 × 385 mm) con un
+> [plan de impresión](Mechanical/plan_impresion.md) por placas, hay un [manual de armado paso a paso](Documentation/manual_armado/Manual_de_Armado.md)
+> y un [esquema de conexiones completo](Documentation/wiring/esquema_conexiones.svg) con su
+> [tabla punto a punto](Documentation/wiring/tabla_conexiones.md).
 
 ## Índice
 
@@ -30,7 +44,9 @@ analiza con **Python + OpenCV** usando una red neuronal **MobileNetV2** ejecutad
 `1 = PERRO`, `2 = GATO` o `0 = INDETERMINADO`. El ESP32 **decide** si corresponde dispensar (clase válida,
 tiempo mínimo entre raciones, límite diario, batería y servo correctos, mascota todavía presente) y mueve el
 **MG995**, que gira un **disco volumétrico**: cada ciclo entrega un volumen fijo de alimento que cae por un
-**conducto cerrado** hasta el comedero. La electrónica está en compartimientos separados del alimento.
+**conducto cerrado** hasta el comedero. La electrónica está en compartimientos separados del alimento. Un **segundo
+HC-SR04** en la tapa de la tolva mide cuánto alimento queda y el ESP32 **avisa** al PC (y al celular) cuando se está
+acabando. El **panel solar** está en una **estación remota** orientable, donde haya sol, unida a la torre por un cable.
 
 **La auditoría previa encontró errores en el planteamiento inicial que se corrigieron** (detalle en §7 y §42):
 
@@ -51,14 +67,17 @@ tiempo mínimo entre raciones, límite diario, batería y servo correctos, masco
 Actions, `.github/workflows/verificacion.yml`):
 
 * **Firmware compilado con la cadena oficial de Espressif** (Arduino-ESP32 **2.0.17** y **3.0.7**, `--warnings all`,
-  sin advertencias propias): ESP32 955 kB / 1 092 kB (72 % / 83 % de la flash), ESP32-CAM 847 kB / 1 023 kB.
+  sin advertencias propias): ESP32 960 kB / 1 097 kB (73 % / 83 % de la flash), ESP32-CAM 847 kB / 1 023 kB.
 * **Firmware del ESP32 ejecutado en el emulador QEMU de Espressif**: arranca, entra en la máquina de estados y
-  responde a todos los comandos (autoprueba de 12 puntos). El emulador encontró un error real que se corrigió
-  (el botón BOOT mantenido borraba errores cada 50 ms).
-* 19 escenarios de la máquina de estados en PC; 18 pruebas del servicio de visión (incluida una extremo a
-  extremo por HTTP); **modelo real** sobre 25 imágenes públicas: 9/9 perros, 5/5 gatos y 0 errores peligrosos con
-  11 animales parecidos (lobo, coyote, dingo, zorros, hiena, puma, lince, tigre, guepardo) y un peluche.
-* 34 comprobaciones geométricas de la torre (cero interferencias, recorrido del alimento continuo, imprimibilidad).
+  responde a todos los comandos, incluido `NIVEL` (autoprueba de 14 puntos). El emulador encontró un error real que se
+  corrigió (el botón BOOT mantenido borraba errores cada 50 ms).
+* 24 escenarios de la máquina de estados en PC (5 del sensor de nivel: alerta única, tolva vacía, recarga parcial,
+  sensor sin lectura, reintento si el PC no recibe la alerta); 22 pruebas del servicio de visión (extremo a extremo por
+  HTTP, alertas, panel web y reenvío al celular); **modelo real** sobre 25 imágenes públicas: 9/9 perros, 5/5 gatos y 0
+  errores peligrosos con 11 animales parecidos (lobo, coyote, dingo, zorros, hiena, puma, lince, tigre, guepardo) y un peluche.
+* 45 comprobaciones geométricas (cero interferencias en 171 pares, recorrido del alimento continuo, cápsula del sensor
+  de nivel fuera del alimento, bandeja solar libre de 0° a 75°, **las 22 piezas caben en la Neptune 4 Plus**) y la
+  placa de control y el esquema se regeneran desde `config.h` (fallan si un pin no coincide).
 
 **Pendiente de prueba física** (no se puede hacer sin el hardware): consumos reales, calibración de posiciones y
 gramos, umbrales con la cámara instalada, Wi-Fi y cámara reales, comportamiento del panel. El plan de pruebas (§38)
@@ -83,6 +102,9 @@ entregue una ración calibrada solo cuando corresponda, integrando IoT (Wi-Fi/HT
 7. Diseñar una torre modular, desmontable e imprimible sin soportes.
 8. Analizar la energía (consumo, picos, autonomía, aporte solar) sin afirmaciones imposibles.
 9. Definir procedimientos de calibración y un plan de pruebas con criterios de aprobación.
+10. Medir el nivel de alimento de la tolva con un segundo HC-SR04 y **avisar** cuando se esté por acabar (recomendación
+    del profesor).
+11. Separar la captación solar en una **estación remota** orientable, ubicada donde haya sol (recomendación del profesor).
 
 ## 4. Componentes definitivos
 
@@ -92,9 +114,9 @@ entregue una ración calibrada solo cuando corresponda, integrando IoT (Wi-Fi/HT
 |---|---|---|
 | ESP32 DevKit V1 (ESP32-WROOM-32, 30 pines) | 1 | Controlador y actuador |
 | ESP32-CAM AI-Thinker (OV2640) | 1 | Captura de imágenes |
-| HC-SR04 (versión de 5 V) | 1 | Detección de aproximación |
+| HC-SR04 (versión de 5 V) | **2** | n.º 1: detección de aproximación (frente) · n.º 2: **nivel de alimento en la tolva** (tapa) |
 | Servomotor MG995 (versión **180°**, no la de giro continuo) | 1 | Accionamiento del dosificador |
-| Panel solar ≈ 3 V / 100 mA (con cable) | 1 | Captación solar (demostrativa) |
+| Panel solar ≈ 3 V / 100 mA (con cable) | 1 | Captación solar (demostrativa), en la **estación remota** |
 
 **COMPONENTES AUXILIARES DE ALIMENTACIÓN** (no son "funcionales", pero sin ellos el sistema no es
 eléctricamente posible; ver §16 y §21):
@@ -116,11 +138,14 @@ Lista de compras completa (con cantidades) en
 [`Documentation/components/lista_materiales.csv`](Documentation/components/lista_materiales.csv) (se abre con Excel o
 Google Sheets).
 
-**Componentes pasivos y de montaje:** R1 1 kΩ, R2 2 kΩ (divisor ECHO); 330 Ω (serie señal servo); 10 kΩ
-(pull-down señal servo); 4 × 100 kΩ y 2 × 33 kΩ (divisores de medición); 1 × 1000–2200 µF ≥ 10 V (servo);
-3 × 470 µF ≥ 10 V (salida del Buck B, placa de control y ESP32-CAM); 4 × 100 nF (3 en la placa de control junto a los ADC, 1 en la ESP32-CAM); placa perforada 90×70 mm; tiras de pines hembra; borneras;
-conectores entre módulos (JST-XH o XT30); cable AWG 20 (potencia) y AWG 24 (señal); tornillería M3 (≈ 35 tornillos
-M3×10, 4 × M3×12, 12 tuercas M3); adaptador USB-TTL 3,3 V o placa ESP32-CAM-MB (solo para programar la cámara);
+**Componentes pasivos y de montaje:** R1 1 kΩ, R2 2 kΩ (divisor ECHO de presencia); **R5 1 kΩ, R6 2 kΩ (divisor
+ECHO del sensor de nivel)**; 330 Ω (serie señal servo); 10 kΩ (pull-down señal servo); 4 × 100 kΩ y 2 × 33 kΩ
+(divisores de medición); 1 × 1000–2200 µF ≥ 10 V (servo); 3 × 470 µF ≥ 10 V (salida del Buck B, placa de control y
+ESP32-CAM); 4 × 100 nF (3 en la placa de control junto a los ADC, 1 en la ESP32-CAM); placa perforada 90×70 mm; tiras
+de pines hembra; conectores entre módulos (JST-XH o XT30); **conector GX12 de 2 pines (macho + hembra) y 3–5 m de cable
+bipolar de exterior** para la estación solar; **cable de 4 hilos de ~120 cm** para el sensor de nivel; cable AWG 20
+(potencia) y AWG 24 (señal); tornillería: 26 × M3×10, 6 × M3×12, 8 tuercas M3 (+ repuestos), 2 × M4×12 con tuerca y
+arandela (pivote de la estación solar); adaptador USB-TTL 3,3 V o placa ESP32-CAM-MB (solo para programar la cámara);
 PC/notebook con Wi-Fi; router o punto de acceso 2,4 GHz.
 
 ## 5. Componentes eliminados
@@ -135,10 +160,11 @@ es **exclusivamente** por visión artificial.
 |---|---|---|
 | ESP32 DevKit V1 | Lee el HC-SR04, confirma presencia, pide la clasificación al PC, **decide** si dispensar, genera el PWM del servo, mide tensiones, gestiona errores, expone `/status` | No procesa imágenes, no alimenta el servo |
 | ESP32-CAM | Toma una foto JPEG cuando el PC la pide (`/capture`) | No clasifica, no se conecta por cable al ESP32 |
-| HC-SR04 | Mide distancia (ultrasonido 40 kHz) para saber si hay algo delante del comedero | No distingue perro, gato, persona u objeto |
+| HC-SR04 n.º 1 (presencia) | Mide distancia (ultrasonido 40 kHz) para saber si hay algo delante del comedero | No distingue perro, gato, persona u objeto |
+| HC-SR04 n.º 2 (nivel) | Desde la tapa, mide la distancia a la superficie del alimento → % de volumen restante → alertas | No mide gramos (depende de la densidad del alimento) |
 | MG995 | Gira el disco dosificador entre las posiciones LLENADO, DESCARGA y CERRADO | No "sabe" cuántos gramos entrega; no informa su posición |
-| Panel solar | Capta energía (aporte pequeño) y su tensión se mide como indicador de irradiancia | No alimenta el sistema ni el servo |
-| PC + Python + OpenCV + modelo | Descarga la foto, verifica su calidad, ejecuta la red neuronal y devuelve 1/2/0 | No controla el servo ni decide las raciones |
+| Panel solar (estación remota) | Capta energía (aporte pequeño) donde haya sol y su tensión se mide como indicador de irradiancia | No alimenta el sistema ni el servo |
+| PC + Python + OpenCV + modelo | Descarga la foto, verifica su calidad, ejecuta la red neuronal y devuelve 1/2/0; recibe las alertas de nivel y las muestra (panel web) o las reenvía al celular | No controla el servo ni decide las raciones |
 | Batería + BMS + convertidores | Almacenan energía y entregan 6,0 V (servo) y 5,0 V (lógica) estables | — |
 
 ## 7. Arquitectura general
@@ -170,8 +196,9 @@ dosificador → conducto → comedero es **correcta en sus responsabilidades**, 
 └──┬─────┬───┬───┘                    └─────────────────────────┘
    │     │   │ PWM 50 Hz (solo señal)
    │     │   └──────────────▶ MG995 ◀── 6,0 V (Buck A) ── disco dosificador ── conducto ── comedero
-   │     └── TRIG/ECHO(divisor) ── HC-SR04 (5 V)
-   └── ADC: batería, riel 6 V, panel
+   │     ├── TRIG/ECHO(divisor) ── HC-SR04 n.º 1 (presencia, 5 V)
+   │     └── TRIG2/ECHO2(divisor) ── HC-SR04 n.º 2 (nivel de la tolva) ──▶ 4) POST /alerta al PC ──▶ panel web / ntfy
+   └── ADC: batería, riel 6 V, panel (estación solar remota ── cable 3–5 m ── GX12 ── cajón de energía)
 ```
 
 ## 8. Flujo completo
@@ -185,6 +212,10 @@ flowchart TD
   E -- no --> EW[ERROR_WIFI: reintento cada 5 s, reinicio a los 5 min]
   EW --> E
   E -- sí --> F[ESPERANDO]
+  F --> NV[Cada 60 s: nivel de la tolva, HC-SR04 n.º 2]
+  NV --> NA{¿Bajo 20 % del volumen, 3 lecturas?}
+  NA -- sí --> AL[POST /alerta COMIDA_BAJA al PC: panel web y celular] --> G
+  NA -- no --> G
   F --> G[Leer distancia: mediana de 3 disparos]
   G --> H{¿Batería >= 6,8 V?}
   H -- no --> EA[ERROR_ALIMENTACION: no dispensar hasta >= 7,0 V] --> F
@@ -201,7 +232,7 @@ flowchart TD
   N -- clase 0: borrosa, oscura, incierta, sin mascota --> O{¿Intentos < 3 y sigue presente?}
   O -- sí, tras 4 s --> K
   O -- no --> P[No dispensar, esperar zona libre] --> F
-  N -- 1 PERRO / 2 GATO --> Q{¿Clase habilitada, cooldown cumplido, límite diario OK?}
+  N -- 1 PERRO / 2 GATO --> Q{¿Clase habilitada, cooldown cumplido, límite diario OK, tolva no agotada?}
   Q -- no --> P
   Q -- sí --> R{¿La mascota sigue delante?}
   R -- no, se fue --> P
@@ -222,7 +253,9 @@ antes de dispensar y antes de reintentar), imagen borrosa/oscura/sobreexpuesta/ 
 incierta o ambigua (clase 0), Wi-Fi caído (ERROR_WIFI, reconexión y reinicio), ESP32-CAM sin respuesta
 (ERROR_CAMARA), PC sin respuesta (ERROR_CLASIFICACION), servo sin alimentación (ERROR_SERVO), atasco
 (ERROR_MECANISMO), batería baja (ERROR_ALIMENTACION), panel insuficiente (no bloquea: la batería manda; se informa
-en `/status`), activaciones repetidas (cooldown global, cooldown por clase, límite diario y rearmado por zona libre).
+en `/status`), activaciones repetidas (cooldown global, cooldown por clase, límite diario y rearmado por zona libre),
+**comida por acabarse** (alerta COMIDA_BAJA), **tolva vacía** (COMIDA_AGOTADA: no gira en vacío), **sensor de nivel
+sin eco** (aviso, no bloquea) y **PC que no recibe la alerta** (reenvío cada 30 s).
 
 ## 9. Diagrama de bloques
 
@@ -230,7 +263,8 @@ en `/status`), activaciones repetidas (cooldown global, cooldown por clase, lím
                  MASCOTA
                     │ (ultrasonido)
                     ▼
-                 HC-SR04 ──TRIG/ECHO (divisor 1k/2k)──┐
+     HC-SR04 n.º 2 (tolva) ──TRIG2/ECHO2 (divisor 1k/2k)──┐  nivel → alertas (POST /alerta)
+                 HC-SR04 ──TRIG/ECHO (divisor 1k/2k)──┤
                                                       ▼
                                                    ESP32 ◀──────────────────────────────┐
                                                       │                                 │
@@ -248,8 +282,8 @@ en `/status`), activaciones repetidas (cooldown global, cooldown por clase, lím
                                                                       ▼
                                                                   COMEDERO
 
-     PANEL SOLAR ─▶ D1 ─▶ ELEVADOR 5 V ─▶ CARGADOR 2S ─▶ BMS + 2×18650 ─▶ F1 ─▶ S1 ─┬─▶ BUCK A 6,0 V ─▶ MG995
-     USB-C 5 V ───────────────────────────────┘                                   └─▶ BUCK B 5,0 V ─▶ ESP32, ESP32-CAM, HC-SR04
+     ESTACIÓN SOLAR REMOTA: PANEL ─(cable 3–5 m, GX12)─▶ D1 ─▶ ELEVADOR 5 V ─▶ CARGADOR 2S ─▶ BMS + 2×18650 ─▶ F1 ─▶ S1 ─┬─▶ BUCK A 6,0 V ─▶ MG995
+     USB-C 5 V ────────────────────────────────────────────────────┘                                   └─▶ BUCK B 5,0 V ─▶ ESP32, ESP32-CAM, 2 × HC-SR04
 ```
 
 ## 10. Arquitectura ESP32
@@ -264,11 +298,12 @@ en `/status`), activaciones repetidas (cooldown global, cooldown por clase, lím
 | `Ultrasonico` | Disparo de 10 µs, `pulseIn` con timeout 30 ms, mediana de N, ≥ 60 ms entre disparos | GPIO26, GPIO34 |
 | `Dosificador` | PWM LEDC 50 Hz/16 bits, rampa (10 µs cada 10 ms), ciclo llenar/descargar, agitación, retroceso ante atasco, liberación del servo | GPIO25 |
 | `Energia` | `analogReadMilliVolts` (calibración eFuse), promedio de 16 muestras, factores de divisor | GPIO35, 32, 33 |
-| `Red` | Wi-Fi con IP fija, reconexión, cliente HTTP con timeouts, servidor `/status` | Wi-Fi |
+| `NivelTolva` + `NivelGeometria.h` | HC-SR04 n.º 2: mediana de 5, calibración VACIO/LLENO guardada en la flash (NVS), altura → **% de volumen** con la tabla calculada del embudo | GPIO19, GPIO21 |
+| `Red` | Wi-Fi con IP fija, reconexión, cliente HTTP con timeouts, servidor `/status`, `POST /alerta` al PC | Wi-Fi |
 | `Dispensador_ESP32.ino` | Une los módulos (`HardwareReal`), lazo de 50 ms, comandos serie, LED | GPIO2, GPIO0 |
 
 * **Patrón:** la máquina de estados depende de una interfaz abstracta `Hardware`; en el ESP32 la implementa
-  `HardwareReal` y en las pruebas de PC un `FakeHW`. Así se probaron 19 escenarios sin placa.
+  `HardwareReal` y en las pruebas de PC un `FakeHW`. Así se probaron 24 escenarios sin placa.
 * **Sin bloqueos largos:** el lazo corre cada 50 ms; las únicas esperas largas son la petición HTTP (máx. 10 s,
   con timeout) y la dosis (el servo debe completar el ciclo).
 
@@ -293,6 +328,7 @@ Responsabilidades separadas (§32 de la consigna):
 | **OpenCV** (`clasificador.py`) | `cv2.imdecode` (valida el JPEG), brillo medio, **varianza del Laplaciano** (nitidez), **CLAHE** (contraste en interiores), `cv2.dnn.blobFromImage` (224×224, RGB, escala) y **ejecución de la red con `cv2.dnn`** |
 | **Modelo** MobileNetV2 (ONNX Model Zoo, ImageNet-1k, Apache-2.0, 14 MB) | Interpreta la imagen: 1000 probabilidades |
 | **Regla de decisión** (`decidir`) | P(perro) = Σ índices 151–268 (118 razas); P(gato) = Σ índices 281–285 (gatos domésticos) |
+| **Alertas** (`alertas.py`) | Recibe `POST /alerta` del ESP32 (nivel de la tolva), guarda las últimas, las muestra en el **panel web** (`GET /`) y, si se configura un tema de **ntfy**, las reenvía al celular |
 | **ESP32** | Control y actuación |
 
 **Por qué este modelo y no uno en la ESP32-CAM:** MobileNetV2 necesita ≈ 14 MB de pesos y ≈ 300 millones de
@@ -341,9 +377,9 @@ modelo, por lo que el resultado es optimista. **No reemplaza la calibración con
 
 | Equipo | IP (configurable) | Cliente de | Servidor de |
 |---|---|---|---|
-| ESP32 | 192.168.1.52 (`config.h`) | PC (`/classify`, `/status`), cámara (`/status`) | `/status` (puerto 80) |
+| ESP32 | 192.168.1.52 (`config.h`) | PC (`/classify`, `/status`, `/alerta`), cámara (`/status`) | `/status` (puerto 80) |
 | ESP32-CAM | 192.168.1.51 (`config.h` de la cámara) | — | `/capture`, `/status` (puerto 80) |
-| PC | 192.168.1.50 (fijar por DHCP reservado o IP manual) | Cámara (`/capture`, `/status`) | `/classify`, `/status` (puerto 8000) |
+| PC | 192.168.1.50 (fijar por DHCP reservado o IP manual) | Cámara (`/capture`, `/status`), ESP32 (`/status`, para el panel), ntfy.sh (opcional) | `/classify`, `/status`, `/alerta`, `/`, `/panel.json` (puerto 8000) |
 
 Requisitos de red: **2,4 GHz** (el ESP32 no usa 5 GHz), **WPA2-Personal** (las redes con portal cautivo o
 WPA2-Enterprise de las universidades no sirven). Para la feria se recomienda un router propio o el punto de acceso
@@ -357,7 +393,9 @@ del celular, ajustando las tres IP a su subred.
 | ESP32-CAM | `GET http://192.168.1.51/status` | — | `200 {"camara":true,"psram":true,"fotos_ok":12,"fotos_fallidas":0,"rssi":-58,"heap":..,"uptime_s":..}` | `503` si la cámara falló | ESP32: 2 s |
 | PC | `GET http://192.168.1.50:8000/classify?dist=24` | `dist` = distancia en cm (solo registro) | `200 {"clase":1,"etiqueta":"PERRO","confianza":0.93,"motivo":"OK","p_perro":0.93,"p_gato":0.01,"fotos_validas":2,"ms":640}` | `200` con `"clase":0` y `motivo` ∈ {`BAJA_CONFIANZA`,`AMBIGUO`,`SIN_MASCOTA`,`IMAGEN_BORROSA`,`IMAGEN_OSCURA`,`IMAGEN_SOBREEXPUESTA`,`IMAGEN_INVALIDA`}; `502 {"clase":0,"motivo":"CAMARA_NO_RESPONDE"}`; `500 {"clase":0,"motivo":"ERROR_INTERNO"}` | ESP32: conexión 2 s, respuesta 10 s |
 | PC | `GET http://192.168.1.50:8000/status` | — | Estado del servidor, versión de OpenCV, modelo, estado de la cámara, última clasificación y umbrales | — | ESP32: 2 s |
-| ESP32 | `GET http://192.168.1.52/status` | — | `{"estado":"ESPERANDO","distancia_cm":48.2,"ultima_clase":2,...,"v_bateria":7.61,"v_servo":6.02,"v_panel":2.85,"rssi":-60}` | — | — |
+| PC | `POST http://192.168.1.50:8000/alerta` | `{"tipo":"COMIDA_BAJA","nivel":18}` (tipo ∈ {`COMIDA_BAJA`,`COMIDA_AGOTADA`,`COMIDA_REPUESTA`,`SENSOR_NIVEL_SIN_LECTURA`}) | `200 {"ok":true,"alerta":{...,"mensaje":"La comida del dispensador se está acabando (nivel ~18 %). Recargue la tolva."}}` | `400` tipo desconocido o JSON inválido | ESP32: 2 s; si falla, reenvío cada 30 s |
+| PC | `GET http://192.168.1.50:8000/` y `/panel.json` | — | Panel web (se actualiza cada 5 s): barra de nivel de la tolva, estado del ESP32, alertas y últimas clasificaciones | Si el ESP32 no responde, el panel lo indica | PC → ESP32: 1 s |
+| ESP32 | `GET http://192.168.1.52/status` | — | `{"estado":"ESPERANDO","distancia_cm":48.2,"ultima_clase":2,...,"v_bateria":7.61,"v_servo":6.02,"v_panel":2.85,"nivel_tolva":64,"alerta_tolva":"NINGUNA","alerta_pendiente":false,"rssi":-60}` | — | — |
 
 **Endpoints que NO existen a propósito:** `/feed` (un "dar comida" remoto permitiría sobrealimentar desde la red;
 la dosis manual solo existe por cable USB, comando `CICLO`) y `/result` (el resultado viaja en la misma respuesta de
@@ -380,6 +418,10 @@ sequenceDiagram
   P->>P: calidad + CLAHE + blob + cv2.dnn + decisión
   P-->>E: 200 {"clase":2,"etiqueta":"GATO","confianza":0.97}
   E->>E: validar reglas y mover MG995
+  Note over E: cada 60 s en ESPERANDO: nivel de la tolva
+  E->>P: POST /alerta {"tipo":"COMIDA_BAJA","nivel":18}
+  P-->>E: 200 {"ok":true}
+  P->>P: panel web + ntfy (celular)
 ```
 
 **Reconexión:** ESP32 y cámara reintentan el Wi-Fi cada 5 s (`WiFi.reconnect()`); el ESP32 se reinicia tras 5 min
@@ -389,7 +431,11 @@ sin red y la cámara tras 2 min. El PC no guarda conexiones abiertas (`Connectio
 
 ![Esquema de conexiones](Documentation/wiring/esquema_conexiones.png)
 
-Fuente editable: [`Documentation/wiring/esquema_conexiones.svg`](Documentation/wiring/esquema_conexiones.svg).
+Esquema **completo** de todos los componentes (estación solar remota, cajón de energía, placa de control con J1–J5,
+los dos HC-SR04, MG995, ESP32-CAM, PC, router y celular): [`esquema_conexiones.svg`](Documentation/wiring/esquema_conexiones.svg).
+Lo genera [`generar_esquema.py`](Documentation/wiring/generar_esquema.py) **leyendo los GPIO de `config.h`**, así que no
+puede quedar desactualizado. Conexión por conexión (de dónde a dónde, sección del cable, recorrido por la torre y
+comprobaciones antes de energizar): [`tabla_conexiones.md`](Documentation/wiring/tabla_conexiones.md).
 
 ```
                  ┌──────────────────────────────┐
@@ -397,6 +443,10 @@ Fuente editable: [`Documentation/wiring/esquema_conexiones.svg`](Documentation/w
    (Buck B)      │                               │            ┌── R1 1 kΩ ──── ECHO  HC-SR04 (5 V)
                  │                         GPIO34├────────────┤
                  │      ESP32 DevKit V1          │            └── R2 2 kΩ ──── GND        (≈3,3 V en GPIO34)
+                 │                         GPIO19├──────────────────────────── TRIG  HC-SR04 n.º 2 (tolva)
+                 │                               │            ┌── R5 1 kΩ ──── ECHO  HC-SR04 n.º 2 (5 V)
+                 │                         GPIO21├────────────┤
+                 │                               │            └── R6 2 kΩ ──── GND        (≈3,3 V en GPIO21)
                  │                         GPIO25├── 330 Ω ─────────────────── SEÑAL MG995
                  │                               │   └── 10 kΩ ── GND (pull-down: servo quieto al arrancar)
   divisor VBAT ──┤ GPIO35                        │
@@ -415,10 +465,10 @@ Fuente editable: [`Documentation/wiring/esquema_conexiones.svg`](Documentation/w
                  │ SEÑAL ◀ ESP32    │                       │
                  └──────────────────┘                       │
                  ┌──────────────────┐                       │
-     5,0 V ──────┤ VCC  HC-SR04     │                       │
+     5,0 V ──────┤ VCC  HC-SR04 ×2  │                       │
                  │ GND ─────────────┼───────────────────────┘
-                 │ TRIG ◀ GPIO26    │
-                 │ ECHO ▶ divisor   │
+                 │ TRIG ◀ GPIO26/19 │
+                 │ ECHO ▶ divisores │
                  └──────────────────┘
 ```
 
@@ -426,11 +476,13 @@ Fuente editable: [`Documentation/wiring/esquema_conexiones.svg`](Documentation/w
 
 ![Placa de control](Documentation/wiring/placa_control.png)
 
-Disposición de soldadura con 27 cables numerados y su lista paso a paso en
+Disposición de soldadura con 34 cables numerados y su lista paso a paso en
 [`Documentation/wiring/placa_control.md`](Documentation/wiring/placa_control.md). La genera
 [`generar_placa_control.py`](Documentation/wiring/generar_placa_control.py), que además **verifica** que cada red quede
 unida, que ningún cable pase sobre un agujero ajeno, que los GPIO coincidan con `config.h`, que no se use ningún pin
-prohibido y que el divisor deje ≤ 3,4 V en GPIO34 (esta comprobación corre en GitHub Actions). El ESP32 va sobre tiras
+prohibido y que los dos divisores dejen ≤ 3,4 V en GPIO34 y GPIO21 (esta comprobación corre en GitHub Actions). El
+conector **J5** del sensor de nivel está en el borde superior izquierdo, junto a GPIO19/21 de la otra fila de pines:
+sus cables son cortos y no cruzan ningún otro. El ESP32 va sobre tiras
 de pines **hembra** (se retira para programarlo o reemplazarlo); el servo **no** recibe alimentación por esta placa,
 solo su señal.
 
@@ -447,6 +499,9 @@ impedancia); la ESP32-CAM no se cablea al ESP32 (solo Wi-Fi).
 | HC-SR04 | GND | GND común | Tierra | — |
 | HC-SR04 | TRIG | ESP32 **GPIO26** | Disparo (pulso 10 µs) | 3,3 V supera el umbral TTL (V_IH 2,0 V); no requiere adaptación |
 | HC-SR04 | ECHO | R1 1 kΩ → nodo → ESP32 **GPIO34**; nodo → R2 2 kΩ → GND | Retorno (ancho = distancia) | 5 V × 2/(1+2) = **3,33 V** ≤ 3,6 V (máx. ESP32). GPIO34 es solo entrada: no puede dañarse configurándolo como salida |
+| HC-SR04 n.º 2 (tolva) | VCC / GND | Bus 5,0 V / GND (por J5) | Alimentación | Cable de 4 hilos ~120 cm por la tapa y el conducto de la esquina |
+| HC-SR04 n.º 2 (tolva) | TRIG | ESP32 **GPIO19** (J5) | Disparo | Sin función de arranque |
+| HC-SR04 n.º 2 (tolva) | ECHO | R5 1 kΩ → nodo → ESP32 **GPIO21**; nodo → R6 2 kΩ → GND | Nivel de alimento | Mismo divisor que el de presencia: 3,33 V |
 | MG995 | SIGNAL (naranja) | 330 Ω → ESP32 **GPIO25**; 10 kΩ de GPIO25 a GND | PWM 50 Hz, 0,5–2,5 ms | GPIO25 no es de arranque (strapping) ni emite pulsos al iniciar |
 | MG995 | VCC (rojo) | Salida **Buck A 6,0 V** | Alimentación | Fuente ≥ 3 A; C1 1000–2200 µF junto al conector |
 | MG995 | GND (marrón) | GND común (en el conector del servo) | Tierra | Necesario para que la señal tenga referencia |
@@ -461,8 +516,8 @@ impedancia); la ESP32-CAM no se cablea al ESP32 (solo Wi-Fi).
 | ESP32-CAM | 5V | Bus 5,0 V | Alimentación | 470 µF + 100 nF junto al módulo |
 | ESP32-CAM | GND | GND común | Tierra | — |
 | ESP32-CAM | U0R, U0T, IO0 | Solo al programar (USB-TTL) | Carga del firmware | Desconectados en funcionamiento |
-| Panel | + | D1 1N5817 → entrada del elevador MT3608; antes de D1, divisor 100k/100k → GPIO33 | Captación | Medir V<sub>oc</sub> e I<sub>sc</sub> reales |
-| Panel | − | GND común | — | — |
+| Panel (estación remota) | + | Cable 3–5 m → GX12 pin 1 → D1 1N5817 → entrada del elevador MT3608; antes de D1, divisor 100k/100k → GPIO33 | Captación | Medir V<sub>oc</sub> e I<sub>sc</sub> reales |
+| Panel (estación remota) | − | Cable → GX12 pin 2 → GND común | — | — |
 | MT3608 | OUT+ (5,0 V) | Entrada 5 V del cargador 2S | Carga solar | Ajustar a 5,0 V **sin carga** |
 | Cargador 2S | OUT+ / OUT− | BMS P+ / P− | Carga CC/CV 8,4 V | BMS de puerto común |
 | BMS 2S | B+, BM, B− | Celda 2 (+), punto medio, celda 1 (−) | Protección y balanceo | — |
@@ -477,6 +532,7 @@ impedancia); la ESP32-CAM no se cablea al ESP32 (solo Wi-Fi).
 | 26 | TRIG | Salida digital común; no es de arranque; es ADC2 pero no se usa como analógico |
 | 34 | ECHO | Solo entrada, sin pull internos (el divisor fija el nivel), ADC1 |
 | 25 | PWM servo | No es de arranque; LEDC disponible; sin actividad durante el arranque |
+| 19 / 21 | TRIG2 / ECHO2 (nivel de la tolva) | GPIO de uso general, sin función de arranque ni de flash; ECHO2 llega por el divisor R5/R6. Están en la otra fila del DevKit, junto a J5 |
 | 35, 32, 33 | ADC | **ADC1**: funciona con el Wi-Fi activo (ADC2 no) |
 | 2, 0 | LED / botón | Pines de arranque ya cableados en la placa; solo se usan después de arrancar |
 | **Evitados** | 6–11 (memoria flash), 1 y 3 (UART del USB), 12 (selecciona la tensión de la flash: un nivel alto al arrancar impide iniciar), 15 y 5 (arranque), 14 (emite PWM al arrancar), ADC2 para medidas analógicas | — |
@@ -497,8 +553,9 @@ añade el puente USB y el LED). **Medir.** Pico de diseño 0,25 A.
 Bus 5,0 V → pin 5V. Especificación AI-Thinker: **180 mA a 5 V** sin flash, **310 mA** con flash. Muy sensible a caídas
 (reinicios por *brownout*): 470 µF + 100 nF junto al módulo y cable corto.
 
-### C. HC-SR04
-Bus 5,0 V. 15 mA en funcionamiento (hoja de datos).
+### C. HC-SR04 (×2)
+Bus 5,0 V. 15 mA midiendo y < 2 mA en reposo (hoja de datos). El de presencia se calcula midiendo siempre (peor caso);
+el de la tolva mide una vez por minuto, así que pesa sus 2 mA de reposo.
 
 ### D. MG995
 **Buck A 6,0 V exclusivo**, ≥ 3 A. En movimiento 0,5–0,9 A y bloqueado ≈ 2,5 A (valores de hojas de datos de
@@ -506,7 +563,8 @@ distribuidores a 6 V; medir). El firmware **libera** el servo (sin pulsos) al te
 corriente de retención ni se caliente si quedó trabado.
 
 ### E. Sistema solar
-Panel → D1 → MT3608 (5 V) → cargador 2S → BMS → batería. Análisis completo en §21.
+Estación remota: panel → cable 3–5 m → GX12 en el cajón → D1 → MT3608 (5 V) → cargador 2S → BMS → batería. Con
+100 mA, 5 m de cable AWG 22 (ida y vuelta) restan ≈ 0,05 V: despreciable. Análisis completo en §21.
 
 ### Consumo, picos y autonomía (calculado con [`Documentation/power/calculo_energia.py`](Documentation/power/calculo_energia.py))
 
@@ -514,11 +572,12 @@ Panel → D1 → MT3608 (5 V) → cargador 2S → BMS → batería. Análisis co
 |---|---|---|
 | ESP32 DevKit | 0,50 W | 0,10 A × 5 V (estimado) |
 | ESP32-CAM | 0,90 W | 0,18 A × 5 V (AI-Thinker) |
-| HC-SR04 | 0,075 W | 15 mA × 5 V (peor caso) |
-| Lógica total con pérdidas DC-DC (85 %) | 41,6 Wh/día | Wi-Fi siempre conectado |
+| HC-SR04 presencia | 0,075 W | 15 mA × 5 V (peor caso) |
+| HC-SR04 nivel de tolva | 0,010 W | 2 mA × 5 V (reposo; mide 1 vez/min) |
+| Lógica total con pérdidas DC-DC (85 %) | 41,9 Wh/día | Wi-Fi siempre conectado |
 | MG995 (6 raciones × 3 ciclos/día) | 0,10 Wh/día | 0,7 A × 6 V × 4 s por ciclo |
-| **Total** | **41,7 Wh/día (1,74 W medios)** | — |
-| Pico riel 5 V | 0,58 A | ESP32 TX + cámara con flash + sensor → Buck B ≥ 2 A |
+| **Total** | **42,0 Wh/día (1,75 W medios)** | — |
+| Pico riel 5 V | 0,59 A | ESP32 TX + cámara con flash + 2 sensores → Buck B ≥ 2 A |
 | Pico riel 6 V | 2,5 A | servo bloqueado → Buck A ≥ 3 A |
 | Pico en batería | 3,3 A a 6,4 V | → BMS ≥ 5 A, fusible 4 A **lento** (tolera picos breves) |
 | Batería 2S1P 2500 mAh | 18,5 Wh nominal / 14,8 Wh útiles | 80 % utilizable |
@@ -578,6 +637,24 @@ Identificar el modelo antes de cablear; ante la duda, alimentar a 5 V con diviso
 **Limitaciones reales:** el pelaje largo absorbe ultrasonido (alcance menor), superficies inclinadas desvían el eco y
 el sensor no distingue una mascota de una persona o una caja: **por eso la decisión final la da la cámara**.
 
+### 18.1 Segundo HC-SR04: nivel de alimento en la tolva (recomendación del profesor)
+
+| Aspecto | Diseño | Por qué |
+|---|---|---|
+| Ubicación | Cápsula 13b colgada de la tapa 13a, transductores hacia abajo, sobre la boca del embudo | El alimento solo "ve" los transductores; la placa queda en seco; la tapa tiene **llave** (una sola posición), así la calibración no cambia al abrirla |
+| Alcance mínimo | Surco **MAX** dentro del embudo a 30 mm de los transductores | El HC-SR04 no mide a menos de 2 cm (hoja de datos) |
+| Cableado | J5 (GPIO19 TRIG, GPIO21 ECHO por R5/R6); cable por la ranura de la tapa y el tubo cerrado de la esquina trasera izquierda | Ningún cable pasa por el alimento; ~20 cm flojos para levantar la tapa |
+| Medición | Mediana de 5 disparos, una vez por minuto y después de cada ración, solo en ESPERANDO | No interfiere con la detección ni con la dosis |
+| Calibración | `NIVEL VACIO` (tolva vacía) y `NIVEL LLENO` (alimento en MAX), guardadas en la flash | El eco en un embudo depende de la geometría real |
+| Porcentaje | **% de VOLUMEN**, no de altura | El embudo se estrecha: con el 20 % de la altura queda solo el 4,8 % del alimento. La tabla altura → volumen (`NivelGeometria.h`) se calcula del modelo 3D y `generar_stl.py` comprueba que coincida |
+| Alertas | < 20 % del volumen (≈ 126 cm³, ≈ 15 dosis del disco): **COMIDA_BAJA**; ≤ 3 %: **COMIDA_AGOTADA** (no dispensa); > 30 %: **COMIDA_REPUESTA**. Cada cambio exige 3 lecturas seguidas (histéresis 20/30 %) | Una sola alerta por evento, sin repetirse por ruido; capacidad hasta MAX ≈ 632 cm³ |
+| Entrega | `POST /alerta` al PC (panel web + ntfy al celular); si el PC no responde, reenvío cada 30 s | Que el aviso llegue aunque el PC se haya reiniciado |
+| Fallo del sensor | Sin eco 3 veces → aviso único `SENSOR_NIVEL_SIN_LECTURA`; **no bloquea** la alimentación | Un sensor roto no debe dejar sin comer a la mascota |
+
+**Limitación honesta:** el ultrasonido mide la distancia a la superficie en un cono de ≈ 15°; si las croquetas forman
+un montículo o un "cráter" sobre la boca, el porcentaje varía unos puntos. Por eso las alertas tienen histéresis y
+exigen 3 lecturas, y la calibración se hace con el alimento nivelado.
+
 ## 19. Análisis del ESP32
 
 * **Alimentación:** 5 V por VIN (o USB). Lógica a 3,3 V; los GPIO **no toleran 5 V** (máx. V<sub>DD</sub> + 0,3 V).
@@ -590,7 +667,8 @@ el sensor no distingue una mascota de una persona o una caja: **por eso la decis
   a la banda muerta del servo (5 µs).
 * **GND:** todos los GND de la placa están unidos; se conecta al punto estrella.
 * **Wi-Fi:** 802.11 b/g/n solo 2,4 GHz; picos de ≈ 240 mA al transmitir → alimentación con margen y condensadores.
-* **Conflictos detectados:** ninguno con la asignación elegida (§15).
+* **Conflictos detectados:** ninguno con la asignación elegida (§15). El sensor de nivel usa GPIO19 y GPIO21 (uso
+  general, sin función de arranque).
 * **Dato a verificar:** si la placa tiene diodo entre el USB y VIN. Si no lo tiene, no conectar el USB y el bus de 5 V a la vez.
 * **Memoria:** el firmware ocupa el 72 % (núcleo 2.0.17) o el 83 % (núcleo 3.0.7) de la partición de programa por
   defecto (1,25 MB) y ≈ 48 kB de RAM estática. Si se añaden funciones con el núcleo 3.x, elegir el esquema de
@@ -622,13 +700,21 @@ algunos anuncios es incompatible con 3 V × 0,1 A, así que **se usa 0,3 W** y s
 | ESP32-CAM | ≈ 0,9 W continuos, picos 1,5 W | — | **No** |
 | HC-SR04 | 0,075 W | En potencia sí, pero necesita 5 V estables y el panel da ≈ 3 V variables | No directamente |
 | MG995 | 3–5 W en movimiento, 15 W bloqueado | — | **No, en ningún caso** |
-| Sistema completo | 1,74 W medios = 41,7 Wh/día | 0,72 Wh/día (4 h de sol pico, 60 % de rendimiento) | **Aporta ≈ 1,7 %** |
+| Sistema completo | 1,75 W medios = 42,0 Wh/día | 0,72 Wh/día (4 h de sol pico, 60 % de rendimiento) | **Aporta ≈ 1,7 %** |
 | Sistema en la feria (luz artificial) | — | ≈ 0,01 Wh/día | **≈ 0,03 %**: prácticamente cero |
+
+**Estación solar remota (recomendación del profesor):** el panel ya no va sobre la torre: se monta en la estación
+12a + 12b, que se coloca donde haya sol directo (un balcón, una ventana, el patio), hasta a 3–5 m del dispensador, y
+se conecta al cajón de energía con un cable bipolar de exterior y un conector **GX12** de 2 pines (polarizado, con
+rosca). Ventajas: la torre puede estar en la sombra o en el interior (donde está la mascota) y el panel recibe el sol
+que le corresponde; la bandeja se orienta de 0° a 75° (inclinación ≈ latitud del lugar, mínimo 10–15° para que
+escurra el agua, mirando al ecuador) y se fija con dos tornillos M4. La medición `v_panel` se hace en el cajón: la
+caída en el cable es ≈ 0,05 V (despreciable). La estación se imprime en PETG o ASA (sol y lluvia).
 
 **Arquitectura energética físicamente válida:**
 
 ```
-PANEL ≈3 V ─▶ D1 Schottky ─▶ ELEVADOR MT3608 (5,0 V) ─▶ CARGADOR 2S (CC/CV 8,4 V) ◀─ USB-C 5 V (carga principal)
+PANEL ≈3 V (estación remota) ─▶ cable 3–5 m ─▶ GX12 ─▶ D1 Schottky ─▶ ELEVADOR MT3608 (5,0 V) ─▶ CARGADOR 2S (CC/CV 8,4 V) ◀─ USB-C 5 V
                                                               │
                                                     BMS 2S + 2×18650 (ALMACENAMIENTO)
                                                               │
@@ -644,7 +730,9 @@ PANEL ≈3 V ─▶ D1 Schottky ─▶ ELEVADOR MT3608 (5,0 V) ─▶ CARGADOR 2
 * **Papel honesto del panel en el proyecto:** demostrar la cadena de captación → carga → almacenamiento → regulación y
   **medirla** (`v_panel` en `/status`), no alimentar el dispensador.
 * **Para autonomía solar real** (mejora): panel de **≈ 14 W** con controlador MPPT compatible con 2S (8,4 V) y batería de
-  ≈ 80 Wh (2 días), o reducir el consumo apagando la ESP32-CAM entre detecciones (requiere un MOSFET y ≈ 3 s de arranque).
+  ≈ 84 Wh (2 días), o reducir el consumo apagando la ESP32-CAM entre detecciones (requiere un MOSFET y ≈ 3 s de arranque).
+  La estación remota ya deja el panel donde hay sol: un panel más grande solo necesitaría otra bandeja (cambiando
+  `PANEL_W`/`PANEL_H` en `generar_stl.py`).
 * **Seguridad:** celdas de marca con capacidad real (desconfiar de "9800 mAh"), BMS siempre, fusible, nada de soldar
   directamente sobre las celdas sin experiencia (usar portapilas), cargar bajo supervisión.
 
@@ -681,8 +769,8 @@ PANEL ≈3 V ─▶ D1 Schottky ─▶ ELEVADOR MT3608 (5,0 V) ─▶ CARGADOR 2
   si persiste: `ERROR_MECANISMO`, servo liberado, requiere intervención.
 * Grano recomendado ≤ 14 mm (mitad del bolsillo). Para croquetas grandes: aumentar `D_BOLSILLO` y `D_ENTRADA` en
   `generar_stl.py` (la verificación angular avisa si deja de ser seguro).
-* Limpieza: se levanta la tolva, se quita la placa superior a mano (asiento cónico + chaveta, sin tornillos) y el disco
-  se desatornilla del horn.
+* Limpieza: se retira la tapa (con el sensor de nivel, sin desconectarlo), se levanta la tolva, se quita la placa
+  superior a mano (asiento cónico + chaveta, sin tornillos) y el disco se desatornilla del horn.
 
 ## 23. Calibración
 
@@ -721,7 +809,12 @@ y `DIST_LIBRE_CM` ≈ 15 cm más.
 su lugar y su iluminación** → `probar_imagenes.py dataset --barrido` → elegir el umbral sin decisiones peligrosas
 (perro↔gato o dispensar a "otros"). Ajustar `BRILLO_*` y `NITIDEZ_MIN` con los valores impresos para las fotos buenas y malas.
 
-### 23.6 Tiempo entre dispensaciones
+### 23.6 Sensor de nivel de la tolva
+Con la tapa puesta: tolva vacía → `NIVEL VACIO`; alimento nivelado en el surco MAX → `NIVEL LLENO`; `NIVEL` debe
+indicar ≈ 100 %. Para saber cuántos gramos son el 20 % de aviso, pesar una taza del alimento (densidad aparente) y
+multiplicar por ≈ 126 cm³. Detalle en el [manual de armado](Documentation/manual_armado/Manual_de_Armado.md#3-calibración-del-sensor-de-nivel).
+
+### 23.7 Tiempo entre dispensaciones
 `COOLDOWN_*` y `MAX_RACIONES_DIA_*` son **política de uso**: `MODO_FERIA 1` (30 s / 60 s) para demostrar,
 `MODO_FERIA 0` con los valores que defina el dueño.
 
@@ -770,6 +863,12 @@ stateDiagram-v2
 | ERROR_SERVO | Riel de 6 V ausente/bajo | Bloqueante (no se reintenta solo) | Botón BOOT 2 s o comando `RESET` |
 | ERROR_MECANISMO | Atasco tras 2 retrocesos | Servo liberado; bloqueante | Botón BOOT 2 s o comando `RESET` |
 
+**Vigilancia del nivel de la tolva** (no es un estado aparte: corre dentro de ESPERANDO, cada 60 s y después de cada
+ración, para no interferir con una detección o una dosis): 3 lecturas seguidas < 20 % → alerta `COMIDA_BAJA`;
+≤ 3 % → `COMIDA_AGOTADA` y la regla de ración rechaza dispensar; > 3 % después de agotada → vuelve a `COMIDA_BAJA`
+(recarga parcial); > 30 % → `COMIDA_REPUESTA`. Sin eco → aviso `SENSOR_NIVEL_SIN_LECTURA` una sola vez, sin bloquear.
+Una alerta que el PC no confirma (HTTP 200) se reenvía cada 30 s.
+
 ## 25. Manejo de errores
 
 | Error | Detección | Reacción | Recuperación |
@@ -787,13 +886,17 @@ stateDiagram-v2
 | Panel insuficiente | `v_panel` en `/status` | No bloquea (la batería alimenta) | — |
 | Repetición excesiva | Cooldown global, por clase, límite 24 h, rearmado | No dispensa | Automática |
 | Desborde de `millis()` (49,7 días) | Restas sin signo | Sin efecto | Probado |
+| Comida por acabarse | Nivel < 20 % del volumen, 3 lecturas | Alerta `COMIDA_BAJA` (panel web y celular), sigue dispensando | Recargar: `COMIDA_REPUESTA` al superar 30 % |
+| Tolva vacía | Nivel ≤ 3 %, 3 lecturas | Alerta `COMIDA_AGOTADA`; **no dispensa** (el disco giraría en vacío) | Recargar (aunque sea parcialmente) |
+| Sensor de nivel sin eco | 3 lecturas sin eco | Aviso `SENSOR_NIVEL_SIN_LECTURA` (una vez); **no bloquea** | Revisar el cable de J5 y la tapa |
+| PC no recibe la alerta | `POST /alerta` sin HTTP 200 | La alerta queda pendiente (`alerta_pendiente` en `/status`) | Reenvío cada 30 s hasta entregarla |
 
 ## 26. Seguridad
 
 * **GND común** en un punto estrella (salidas de los convertidores y P− del BMS); un cable de GND acompaña al de señal
   del servo.
 * **Alimentación independiente del MG995** (Buck A): sus picos no tiran abajo el 5 V del ESP32 → evita reinicios.
-* **Adaptación de niveles:** ECHO por divisor; señal del servo con 330 Ω y pull-down de 10 kΩ.
+* **Adaptación de niveles:** los dos ECHO por divisor (R1/R2 y R5/R6); señal del servo con 330 Ω y pull-down de 10 kΩ.
 * **Caída de tensión y ruido:** 1000–2200 µF en el servo, 470 µF + 100 nF en la ESP32-CAM y en el bus 5 V, cables de
   potencia AWG 20 cortos, convertidores lejos de la antena.
 * **Reinicio del ESP32:** el servo arranca sin pulsos (pull-down) y el firmware lo lleva a CERRADO y lo libera.
@@ -804,16 +907,21 @@ stateDiagram-v2
 * **Atascos y sobrealimentación:** retroceso, liberación del servo, `MAX_CICLOS_POR_RACION`, límites diarios; la
   clase 0 nunca dispensa; sin endpoint remoto de "dar comida".
 * **Sistema solar/batería:** BMS con balanceo, fusible, interruptor general, celdas en portapilas, nunca la batería
-  directa a cargas de 5–7,2 V.
+  directa a cargas de 5–7,2 V. Estación remota: conector GX12 polarizado, cable de exterior con alivio de tensión
+  (brida en la base 12a), conectar y desconectar con S1 apagado.
+* **Alimento:** el sensor de nivel queda por encima de la línea MAX (verificado) y no toca el alimento; la falta de
+  comida se avisa antes de que el plato quede vacío y, si la tolva se agota, el dispensador no finge entregar raciones.
 * **Estabilidad mecánica:** plinto de 190 mm, energía (lo más pesado) abajo, alojamientos para lastre; con un perro
   grande se recomienda fijar la base a una tabla o a la pared.
 
 ## 27. Diseño mecánico
 
 Modelo **paramétrico en Python** ([`Mechanical/generar_stl.py`](Mechanical/generar_stl.py), biblioteca `manifold3d`)
-que genera las 19 piezas y verifica automáticamente: interferencias entre las 18 piezas ensambladas (153 pares) y con
-el MG995, geometría del dosificador, recorrido del alimento, separación electrónica/alimento, ángulo de la tolva,
-volumen de impresión y cara de apoyo. Resultado actual: **todo correcto**.
+que genera las 22 piezas y verifica automáticamente (45 comprobaciones): interferencias entre las 19 piezas de la
+torre ensambladas (171 pares) y con el MG995, geometría del dosificador, recorrido del alimento, separación
+electrónica/alimento, ángulo de la tolva, **sensor de nivel** (alcance mínimo, cápsula fuera del alimento, tabla
+altura → volumen igual a la del firmware), **estación solar** (bandeja libre de 0° a 75°), **volumen de la Elegoo
+Neptune 4 Plus** y cara de apoyo. Resultado actual: **todo correcto**.
 
 Principios: módulos apilados con **labio macho de 6 mm** (holgura 0,3 mm) + 3 tornillos M3 radiales; placas grandes
 (piso del cuerpo, placa base del dosificador) **integradas o independientes para imprimirse planas**; tetones con
@@ -823,15 +931,16 @@ cartelas a 45°; nada que requiera soportes.
 
 ![Vista explosionada](Mechanical/render/vista_explosion.png)
 
-* **Sección octogonal** (150 mm con chaflanes de 20 mm), altura ≈ 49 cm (≈ 50 cm con el soporte del panel) → aspecto de torre
-  tecnológica, no de caja.
+* **Sección octogonal** (150 mm con chaflanes de 20 mm), altura ≈ 49 cm → aspecto de torre tecnológica, no de caja. El
+  panel ya no va en la torre: está en la **estación solar remota** (12a + 12b).
 * **Capas** (de abajo arriba): Base/energía (0–45 mm) → Cuerpo: canal, sensores y electrónica (45–265) → Dosificador
-  (265–303) → Tolva ≈ 1,4 L geométricos (303–483) → Tapa + panel.
+  (265–303) → Tolva (303–483; ≈ 632 cm³ útiles hasta el surco MAX) → Tapa con el **sensor de nivel** (13a + 13b + 13c).
 * **Modularidad y mantenimiento:** el cajón de energía sale por detrás; la bahía electrónica tiene tapa de servicio; la
   placa del ESP32 sale deslizando; las cápsulas de sensores se desatornillan desde el frente; tolva, placa superior y
   disco se retiran a mano para limpiar.
-* **Cableado oculto:** pasos por el tabique, por el piso y un conducto vertical en la esquina trasera izquierda de la
-  tolva y del dosificador para el cable del panel.
+* **Cableado oculto:** pasos por el tabique, por el piso y un conducto vertical cerrado en la esquina trasera izquierda
+  de la tolva y del dosificador para el cable del **sensor de nivel** (llega por una ranura sobre la tapa). El cable del
+  panel entra por el conector GX12 de la tapa trasera del cajón.
 * **Ventilación:** ranuras en la base (convertidores), en la bahía electrónica y en la cápsula de la cámara; ninguna en
   la zona del alimento.
 * **Centro de gravedad:** batería y convertidores en la base; plinto más ancho que la torre; alojamientos de lastre.
@@ -842,10 +951,9 @@ La distribución sugerida (capas de electrónica entre el dosificador y la salid
 el alimento atravesara las capas de electrónica. La distribución definitiva separa en **zonas verticales**:
 
 ```
-             PANEL SOLAR (soporte 12, inclinado 30°, cable por conducto oculto)
-                     │
-        ┌────────────┴────────────┐
-        │   07 TOLVA (≈1,4 L)     │  zona de alimento
+        13 TAPA + HC-SR04 n.º 2 (nivel)      cable por el conducto     ESTACIÓN SOLAR REMOTA
+        ┌─────────────────────────┐          de la esquina             (12a + 12b, donde haya sol)
+        │   07 TOLVA (632 cm³)    │  zona de alimento                       │ cable 3–5 m
         ├─────────────────────────┤
         │ 08 DOSIFICADOR (disco)  │  zona de alimento; MG995 debajo, en zona seca
         ├────────────┬────────────┤
@@ -857,7 +965,7 @@ el alimento atravesara las capas de electrónica. La distribución definitiva se
         │ 10 PICO ─┐ │ (bandeja)  │
         ├──────────┼─┴────────────┤
         │ 01 BASE: │ batería, BMS,│  zona de energía (lo más pesado abajo)
-        │ cajón 16 │ convertidores│
+        │ cajón 16 │ convertidores│ ◀── GX12 (tapa trasera) ◀────────────────┘
         └──────────┼──────────────┘
                    ▼
               11 COMEDERO
@@ -866,6 +974,8 @@ el alimento atravesara las capas de electrónica. La distribución definitiva se
 * **HC-SR04** a ≈ 20 cm de altura y la **ESP32-CAM** a ≈ 23 cm (inclinada 12°): ven a la mascota frente al comedero.
 * **ESP32** en la bahía trasera, cerca del suelo del cuerpo (lejos de los picos del servo y del calor de los convertidores).
 * **MG995** colgado bajo el disco, del lado seco del tabique.
+* **HC-SR04 n.º 2** en la tapa, mirando hacia la boca del embudo, 30 mm por encima de la línea MAX.
+* **Panel solar** fuera de la torre, en su estación, donde haya sol.
 
 ## 30. Recorrido del alimento
 
@@ -906,26 +1016,34 @@ orientación y mantenimiento en [`Mechanical/README.md`](Mechanical/README.md).
 | 09_Conducto_Alimento | Canal cerrado | Frente de 02 | 41×221×50 | Apoyado | **PETG alimentario** |
 | 10_Salida_Alimento | Pico 45° | Frente | 64×106×52 | 4 × M3 | **PETG alimentario** |
 | 11_Comedero | Plato | Delante | 150×146×44 | Lengüetas | **PETG alimentario** |
-| 12_Soporte_Panel_Solar | Bandeja del panel | Arriba atrás | 57×82×90 | 4 × M3 | PETG/ASA (sol) |
-| 13_Tapa_Superior | Tapa | Arriba | Ø146×12 | Encaje | PLA/PETG |
+| 12a_Estacion_Solar_Base | Base con horquilla de la estación solar remota | Aparte, al sol | 130×110×70 | 4 tornillos o lastre; pivote M4 | **PETG/ASA (exterior)** |
+| 12b_Estacion_Solar_Bandeja | Bandeja del panel (orientable 0–75°) | Aparte, al sol | 104×88×14 | 2 × M4×12 + tuercas alojadas | **PETG/ASA (exterior)** |
+| 13a_Tapa_Superior_Tolva | Tapa con llave, avellanado para la cápsula y ranura del cable | Arriba | Ø146×13 | Encaje con llave | PETG |
+| 13b_Capsula_Sensor_Nivel | Cápsula del HC-SR04 n.º 2 (transductores hacia el alimento) | Bajo la tapa | 54×64×31 | Ala a 45° en el avellanado | PETG |
+| 13c_Tapa_Capsula_Sensor | Tapa de la cápsula | Sobre la tapa | 58×78×2 | 2 × M3×12 | PETG |
 | 14_Tapa_Lateral_Servicio | Acceso a electrónica | Atrás de 02 | 109×186×6 | 4 × M3 | PLA/PETG |
 | 15_Separadores | Separadores M3 | Varios | Ø7×3/6/10 | — | PLA/PETG |
 | 16_Soporte_Estructural_Cajon_Energia | Cajón de energía | Base | 110×123×31 | 2 × M3 | PETG (calor) |
 
-`00_Ensamblaje_Referencia_NO_IMPRIMIR.stl` muestra el conjunto completo (GitHub lo renderiza en 3D).
+`00_Ensamblaje_Referencia_NO_IMPRIMIR.stl` muestra la torre completa (GitHub lo renderiza en 3D). Cómo armar cada pieza
+impresa, paso a paso y con imágenes: [**manual de armado**](Documentation/manual_armado/Manual_de_Armado.md)
+([PDF para imprimir](Documentation/manual_armado/Manual_de_Armado.pdf)).
+
+![Estación solar remota](Documentation/manual_armado/img/paso_11.png)
 
 ## 32. Recomendaciones de impresión 3D
 
 | Parámetro | Recomendación |
 |---|---|
-| Impresora | Volumen ≥ 220 × 220 × 250 mm (la pieza más alta mide 226 mm) |
-| Capa / perímetros / relleno | 0,2 mm / 3–4 / 20 % giroide (40 % en 06, 08b, 16) |
+| Impresora | **Elegoo Neptune 4 Plus** (320 × 320 × 385 mm). Las 22 piezas se verifican con 5 mm de margen por lado (310 × 310 × 380); la más grande es la base (190 × 190) y la más alta el cuerpo (226 mm) |
+| Placas | 5 placas agrupadas por material: [`Mechanical/plan_impresion.md`](Mechanical/plan_impresion.md) (generado por `plan_impresion.py`, que también lamina cada pieza con PrusaSlicer) |
+| Capa / perímetros / relleno | 0,2 mm / 3 / 20 % giroide (40 % en 06, 08b, 12a, 12b, 16) |
 | Grosor de pared del diseño | 3 mm (cuerpos), 2,5 mm (conducto, embudo), 2 mm (cápsulas) |
 | Soportes | **Ninguno** (puentes ≤ 42 mm, voladizos ≤ 45°) |
 | Tolerancias | 0,3 mm por lado en encajes; Ø3,4 pasante M3; Ø2,5 para roscar M3 en plástico |
-| Materiales | PETG apto para alimentos en todo lo que toca el alimento; PETG/ASA si recibe sol |
+| Materiales | PETG apto para alimentos en todo lo que toca el alimento (y en la tapa); PETG/ASA en la estación solar (exterior); PETG en 06 y 16; PLA en el resto |
 | Calibración previa | Imprimir 06 y 15 primero y probar el servo y los tornillos |
-| Filamento | ≈ 2–2,5 kg en total |
+| Filamento (laminado) | ≈ 1,0 kg de PLA + ≈ 1,25 kg de PETG; ≈ 86 h de impresión en total con velocidades moderadas |
 | Higiene | Lavar a mano con agua tibia; secar; considerar un cuenco de acero inoxidable sobre 11 |
 
 ## 33. Tecnologías utilizadas
@@ -940,6 +1058,8 @@ orientación y mantenimiento en [`Mechanical/README.md`](Mechanical/README.md).
 | PC | MobileNetV2 (ONNX) | Modelo pequeño, preciso, licencia libre, funciona en CPU en decenas de ms |
 | PC | NumPy | Normalización y suma de probabilidades |
 | Mecánica | Python + manifold3d + trimesh | CAD paramétrico reproducible, con verificaciones automáticas |
+| Impresión | PrusaSlicer (CLI) | Estimación real de filamento por pieza con un perfil equivalente al de la Neptune 4 Plus |
+| Avisos al celular | ntfy (app gratuita + ntfy.sh) | Notificaciones push sin crear cuentas ni servidores propios; opcional |
 | Pruebas | `unittest` (Python), g++ + stubs (firmware) | Verificación sin hardware |
 
 ## 34. Estructura del software
@@ -949,10 +1069,11 @@ ESP32 (C++)                               PC (Python)                         ES
 ┌────────────────────────────┐          ┌──────────────────────────┐        ┌──────────────────┐
 │ Dispensador_ESP32.ino      │          │ servidor_vision.py       │        │ Camara_ESP32CAM  │
 │  └ HardwareReal ─┐         │  HTTP    │  ├ /classify  /status    │  HTTP  │  ├ /capture      │
-│ Controlador (estados) ◀────┤ ───────▶ │  └ ServicioVision        │ ─────▶ │  └ /status       │
-│ Ultrasonico  Dosificador   │          │ clasificador.py (OpenCV) │        │ config.h         │
-│ Energia      Red           │          │ config.py                │        └──────────────────┘
-│ config.h     secrets.h     │          │ model/ (MobileNetV2)     │
+│ Controlador (estados) ◀────┤ ───────▶ │  ├ /alerta  / (panel)    │ ─────▶ │  └ /status       │
+│ Ultrasonico  Dosificador   │          │  └ ServicioVision        │        │ config.h         │
+│ Energia      Red           │          │ clasificador.py (OpenCV) │        └──────────────────┘
+│ NivelTolva   NivelGeometria│          │ alertas.py (ntfy)        │
+│ config.h     secrets.h     │          │ config.py  model/        │
 └────────────────────────────┘          └──────────────────────────┘
 ```
 
@@ -975,20 +1096,22 @@ Proyecto-Dispensador-IOT/
 │   ├── platformio.ini
 │   └── README.md
 ├── OpenCV/                            ← visión artificial (PC)
-│   ├── servidor_vision.py  clasificador.py  config.py
+│   ├── servidor_vision.py  clasificador.py  alertas.py  config.py
 │   ├── descargar_modelo.py  probar_imagenes.py  capturar_dataset.py  simulador_camara.py
 │   ├── model/                         (modelo descargado, no se versiona)
 │   ├── tests/                         (test_vision.py, test_modelo_real.py, descargar_imagenes_prueba.py)
 │   ├── requirements.txt
 │   └── README.md
 ├── Mechanical/                        ← diseño 3D
-│   ├── generar_stl.py  render.py
-│   ├── STL/                           (19 piezas + ensamblaje de referencia)
-│   ├── render/                        (vistas y cortes)
+│   ├── generar_stl.py  render.py  plan_impresion.py
+│   ├── STL/                           (22 piezas orientadas para imprimir + ensamblaje de referencia)
+│   ├── render/                        (vistas, cortes y placas de impresión)
+│   ├── plan_impresion.md              (placas para la Neptune 4 Plus, filamento y tiempo)
 │   └── README.md
 └── Documentation/
+    ├── manual_armado/                 (Manual_de_Armado.md + .pdf + img/ con cada paso)
     ├── components/lista_materiales.csv (lista de compras)
-    ├── wiring/                        (esquema_conexiones.svg/.png, placa_control.svg/.png/.md + generador)
+    ├── wiring/                        (esquema completo + generador, tabla_conexiones.md, placa_control.* + generador)
     ├── power/calculo_energia.py
     └── calibration/                   (plantillas CSV + analizar_dosificacion.py)
 ```
@@ -1005,7 +1128,8 @@ ALGORITMO Dispensador (ESP32)
     si VBAT < 6,8 V: estado ← ERROR_ALIMENTACION
     si sin Wi-Fi: estado ← ERROR_WIFI
     según estado:
-      ESPERANDO:   d ← mediana(3 disparos)
+      ESPERANDO:   cada 60 s: nivel ← % de volumen de la tolva → alertas (3 lecturas, histéresis 20/30 %)
+                   d ← mediana(3 disparos)
                    si zona libre ≥ 3 s: armar
                    si 3 ≤ d ≤ 35 cm (3 veces) y armado y sin cooldown: DETECTADO
       DETECTADO:   intentos ← 0; CAPTURANDO
@@ -1016,7 +1140,7 @@ ALGORITMO Dispensador (ESP32)
                        si intentos+1 ≥ 3 o la mascota se fue: desarmar, ESPERANDO
                        si no, tras 4 s: intentos++, CAPTURANDO
                    si clase ∈ {1,2}:
-                       si deshabilitada o cooldown de clase o límite 24 h: desarmar, ESPERANDO
+                       si deshabilitada o cooldown de clase o límite 24 h o tolva agotada: desarmar, ESPERANDO
                        si la mascota se fue: desarmar, ESPERANDO
                        si riel 6 V < 4,6 V: ERROR_SERVO
                        si no: DOSIFICANDO
@@ -1032,6 +1156,9 @@ ALGORITMO /classify (PC)
                     P(perro) = Σ p[151..268]; P(gato) = Σ p[281..285]
   promediar las válidas; decidir (mínimo animal 0,5; confianza 0,6; margen 0,3) → 1, 2 o 0
   responder JSON; guardar las fotos con la etiqueta (registro para calibrar)
+
+ALGORITMO /alerta (PC)
+  validar el tipo; guardar (últimas 50); mostrar en el panel web; si hay tema ntfy: enviar al celular en segundo plano
 ```
 
 ## 37. Código propuesto
@@ -1048,7 +1175,9 @@ El código completo y comentado está en el repositorio (no se duplica aquí):
 | [`ESP32/Dispensador_ESP32/Dispensador_ESP32.ino`](ESP32/Dispensador_ESP32/Dispensador_ESP32.ino) | Integración, `/status`, comandos de calibración |
 | [`ESP32_CAM/Camara_ESP32CAM/Camara_ESP32CAM.ino`](ESP32_CAM/Camara_ESP32CAM/Camara_ESP32CAM.ino) | Cámara + HTTP |
 | [`OpenCV/clasificador.py`](OpenCV/clasificador.py) | Calidad, OpenCV DNN, decisión 1/2/0 |
-| [`OpenCV/servidor_vision.py`](OpenCV/servidor_vision.py) | Servidor `/classify` y `/status` |
+| [`ESP32/Dispensador_ESP32/NivelTolva.cpp`](ESP32/Dispensador_ESP32/NivelTolva.cpp) | Sensor de nivel: medición, calibración en NVS, % de volumen |
+| [`OpenCV/servidor_vision.py`](OpenCV/servidor_vision.py) | Servidor `/classify`, `/status`, `/alerta` y panel web |
+| [`OpenCV/alertas.py`](OpenCV/alertas.py) | Alertas de nivel y reenvío al celular (ntfy) |
 
 Fragmento clave del ESP32 (decisión antes de mover el servo, `Controlador.cpp`):
 
@@ -1080,8 +1209,10 @@ p_perro, p_gato = prob[151:269].sum(), prob[281:286].sum()
 ```bash
 # PC
 cd OpenCV && pip install -r requirements.txt && python descargar_modelo.py
-python servidor_vision.py --camara http://192.168.1.51
+python servidor_vision.py --camara http://192.168.1.51 --esp32 http://192.168.1.52   # + --ntfy TEMA (opcional)
+# Panel web con el nivel de la tolva y las alertas: http://IP-DEL-PC:8000/
 # ESP32 y ESP32-CAM: copiar secrets_ejemplo.h -> secrets.h, revisar IP en config.h y cargar
+# Sensor de nivel: con la tolva vacía NIVEL VACIO; con alimento en el surco MAX NIVEL LLENO (monitor serie)
 ```
 
 ## 38. Plan de pruebas
@@ -1099,20 +1230,24 @@ Registrar cada prueba (fecha, valores, foto). **Prueba 0** (añadida): alimentac
 | **6. ESP32 ↔ PC** | Integración | Comando `CLASIFICAR` con perro, gato, nada; apagar la cámara; apagar el PC | Clase correcta; ERROR_CAMARA; ERROR_CLASIFICACION | Las 5 situaciones con el estado correcto y recuperación automática | Firewall del PC, IP del PC errónea | Abrir puerto 8000; corregir `URL_PC` |
 | **7. Dosificación** | Repetibilidad | Calibrar posiciones; `CICLO 1` × 10 con tolva llena/media/baja; pesar; forzar un atasco con una croqueta grande | g/ciclo estable; atasco detectado | CV ≤ 10 %; ninguna caída de alimento fuera del conducto; atasco → ERROR_MECANISMO y servo liberado | Bolsillo no se llena, puenteo en tolva, sin detección de atasco | Aumentar T_LLENADO; agitación; ajustar VSERVO_CAIDA |
 | **8. Sistema completo** | Funcionamiento real | 20 aproximaciones (perro/peluche, gato/foto, persona, nadie); 1 h continua con batería | Dispensa solo a perro/gato, respeta cooldown | 0 dispensaciones indebidas; ≥ 90 % correctas; sin reinicios en 1 h | Repeticiones, reinicios | Ajustar cooldown/rearmado; revisar alimentación |
-| **E. Panel** (añadida) | Aporte real | Medir V<sub>oc</sub>, I<sub>sc</sub> al sol; `v_panel` en `/status`; corriente de carga | ≈ 0,3 W pico al sol, ≈ 0 en interior | Medición registrada y coherente con §21 | Elevador oscila | Documentarlo; mejora con MPPT |
+| **9. Sensor de nivel** (añadida) | Alertas de comida | Calibrar VACIO/LLENO; `NIVEL` con tolva llena, media y casi vacía; vaciar hasta < 20 % y < 3 % | ≈ 100 % lleno; alerta en el panel web (y celular) | Alerta en ≤ 3 min al cruzar el 20 %; con ≤ 3 % no dispensa; al recargar llega COMIDA_REPUESTA | "Sin lectura", saltos | Revisar J5/cable; nivelar el alimento; recalibrar |
+| **E. Panel** (añadida) | Aporte real | Estación al sol; medir V<sub>oc</sub>, I<sub>sc</sub>; `v_panel` en `/status`; corriente de carga | ≈ 0,3 W pico al sol, ≈ 0 en interior | Medición registrada y coherente con §21 | Elevador oscila; GX12 invertido | Documentarlo; mejora con MPPT; pin 1 = + |
 
 **Pruebas ya ejecutadas sin hardware (reproducibles; también corren solas en GitHub Actions en cada `push`):**
 
 ```bash
-cd OpenCV && python -m unittest discover -s tests -v      # 18 pruebas (la del modelo real se activa con imágenes)
+cd OpenCV && python -m unittest discover -s tests -v      # 22 pruebas (la del modelo real se activa con imágenes)
 python tests/descargar_imagenes_prueba.py imagenes_prueba && \
   DISPENSADOR_IMAGENES_PRUEBA=imagenes_prueba python -m unittest tests.test_modelo_real -v   # 25 imágenes, 0 peligrosas
-cd ESP32/test_host && make                                # 19 escenarios de la máquina de estados
+cd ESP32/test_host && make                                # 24 escenarios de la máquina de estados
 cd ESP32/test_host && make sintaxis                       # compilación rápida contra stubs (API 2.x y 3.x)
 arduino-cli compile --fqbn esp32:esp32:esp32doit-devkit-v1 ESP32/Dispensador_ESP32           # compilación real
 arduino-cli compile --fqbn esp32:esp32:esp32cam:PartitionScheme=huge_app ESP32_CAM/Camara_ESP32CAM
 ESP32/test_host/qemu_autoprueba.sh ...                    # firmware real en el emulador QEMU (ver ESP32/README.md)
-cd Mechanical && python generar_stl.py                    # 34 verificaciones geométricas
+cd Mechanical && python generar_stl.py                    # 45 verificaciones geométricas (incl. Neptune 4 Plus)
+cd Mechanical && python plan_impresion.py                 # placas + filamento (PrusaSlicer opcional)
+python Documentation/wiring/generar_placa_control.py      # placa de control coherente con config.h
+python Documentation/wiring/generar_esquema.py            # esquema completo desde config.h
 ```
 
 ## 39. Problemas posibles
@@ -1133,6 +1268,9 @@ cd Mechanical && python generar_stl.py                    # 34 verificaciones ge
 | Raciones repetidas | Cooldown muy corto; rearmado demasiado sensible |
 | PC no recibe peticiones | Firewall; IP del PC cambió (DHCP); servidor no iniciado |
 | La torre se vuelca | Mascota grande; sin lastre; tolva llena arriba |
+| No llega la alerta de comida | Sensor de nivel sin calibrar; cable de J5 suelto; PC apagado; ntfy sin Internet o tema mal escrito |
+| El nivel salta o marca mal | Alimento amontonado bajo el sensor; tapa girada (sin llave); llenado por encima del surco MAX (< 2 cm del sensor) |
+| `v_panel` en 0 al sol | GX12 desenchufado o con la polaridad invertida; cable cortado en el exterior |
 
 ## 40. Soluciones
 
@@ -1152,19 +1290,23 @@ cd Mechanical && python generar_stl.py                    # 34 verificaciones ge
 | Raciones repetidas | Subir `COOLDOWN_*`, `ZONA_LIBRE_MS`, bajar `MAX_RACIONES_DIA_*` |
 | PC no recibe peticiones | Abrir puerto 8000; IP fija/reservada; iniciar `servidor_vision.py` |
 | La torre se vuelca | Lastre en la base; fijar a una tabla o pared; tolva llena solo hasta la mitad en pruebas |
+| No llega la alerta de comida | `NIVEL VACIO`/`NIVEL LLENO`; revisar J5 (GND-ECHO-TRIG-VCC); `alerta_pendiente` en `/status`; panel web del PC; tema ntfy |
+| El nivel salta o marca mal | Nivelar el alimento; colocar la tapa con la llave atrás a la izquierda; no llenar sobre MAX; recalibrar |
+| `v_panel` en 0 al sol | Enchufar el GX12 con S1 apagado; comprobar pin 1 = + con el multímetro |
 
 ## 41. Lista de verificación
 
 **Antes de colocar el ESP32 en la placa de control**
-- [ ] Los 27 cables de `placa_control.md` soldados y tachados
-- [ ] Sin continuidad entre 5V y GND, ni entre ECHO_5V (R1) y el pin D34
-- [ ] Con J1 alimentado y el HC-SR04 conectado: ≤ 3,4 V en el agujero de D34 al disparar
+- [ ] Los 34 cables de `placa_control.md` soldados y tachados
+- [ ] Sin continuidad entre 5V y GND, ni entre ECHO_5V (R1) / ECHO2_5V (R5) y los pines D34 / D21
+- [ ] Con J1 alimentado y los HC-SR04 conectados: ≤ 3,4 V en los agujeros de D34 y D21 al disparar
 
 **Antes de conectar la batería**
 - [ ] Buck A = 6,0 V y Buck B = 5,0 V medidos sin carga
 - [ ] BMS cableado (B+, BM, B−) y fusible de 4 A en P+
 - [ ] Ningún cable de 6–8,4 V llega a un GPIO
-- [ ] Divisor del ECHO: 1 kΩ en serie, 2 kΩ a GND (medido con el óhmetro)
+- [ ] Divisores de los ECHO: 1 kΩ en serie, 2 kΩ a GND (R1/R2 y R5/R6, medidos con el óhmetro)
+- [ ] GX12 del panel: pin 1 = + (medido al sol antes de enchufar)
 - [ ] GND común entre convertidores, ESP32, ESP32-CAM, HC-SR04 y MG995
 
 **Antes de cargar alimento**
@@ -1172,6 +1314,7 @@ cd Mechanical && python generar_stl.py                    # 34 verificaciones ge
 - [ ] Posiciones LLENADO/DESCARGA/CERRADO calibradas con las marcas
 - [ ] Disco gira libre; placa superior asentada con su chaveta
 - [ ] Conducto y pico montados; el alimento cae en el comedero (prueba con 5 ciclos)
+- [ ] Tapa con la llave en su ranura; `NIVEL VACIO` y `NIVEL LLENO` calibrados; no llenar sobre el surco MAX
 
 **Antes de la demostración**
 - [ ] Router/punto de acceso 2,4 GHz y las tres IP verificadas
@@ -1179,6 +1322,8 @@ cd Mechanical && python generar_stl.py                    # 34 verificaciones ge
 - [ ] Umbrales calibrados con la iluminación del lugar
 - [ ] `MODO_FERIA 1` y cooldown adecuados
 - [ ] Batería cargada (VBAT ≥ 8,0 V) y comedero limpio
+- [ ] Estación solar al sol (o junto a una ventana) con el GX12 enchufado
+- [ ] Panel web del PC abierto (`http://IP-DEL-PC:8000/`) para mostrar el nivel y las alertas
 
 ## 42. Auditoría técnica final
 
@@ -1188,41 +1333,47 @@ Leyenda: ✅ verificado en este repositorio · 🔧 verificado en diseño, **pen
 - ✅ Pines verificados (§15, §19): sin pines de flash, UART ni arranque para funciones críticas.
 - ✅ No existen conflictos GPIO (una función por pin; ADC solo en ADC1).
 - ✅ Voltajes compatibles: 5 V solo en VIN/5V/VCC; 6,0 V solo en el servo; 8,4 V solo en entradas de convertidores y divisores.
-- ✅ Niveles lógicos compatibles: TRIG 3,3 V ≥ V<sub>IH</sub> TTL; ECHO 3,33 V ≤ 3,6 V. 🔧 Señal del servo a 3,3 V (plan B: 74AHCT125).
+- ✅ Niveles lógicos compatibles: TRIG 3,3 V ≥ V<sub>IH</sub> TTL; los dos ECHO 3,33 V ≤ 3,6 V (R1/R2 y R5/R6). 🔧 Señal del servo a 3,3 V (plan B: 74AHCT125).
 - ✅ GND correctamente definido (punto estrella, GND junto a la señal del servo).
 - ✅ MG995 correctamente alimentado (Buck A exclusivo, ≥ 3 A, nunca desde GPIO ni batería directa).
 - ✅ ESP32 correctamente alimentado (5 V regulados por VIN). 🔧 Diodo USB-VIN según el clon.
 - ✅ ESP32-CAM correctamente alimentada (5 V + condensadores).
-- ✅ HC-SR04 correctamente conectado (5 V + divisor).
+- ✅ HC-SR04 de presencia y de nivel correctamente conectados (5 V + divisor; GPIO26/34 y GPIO19/21).
+- ✅ Panel en estación remota con conector polarizado; caída en 5 m de cable ≈ 0,05 V (calculada).
 - ✅ No existen conexiones potencialmente peligrosas en el esquema (fusible, BMS, interruptor, divisores en origen).
 
 **SOFTWARE**
-- ✅ ESP32 controla el sistema y toma la decisión final (19 escenarios probados en PC).
+- ✅ ESP32 controla el sistema y toma la decisión final (24 escenarios probados en PC, 5 de ellos del sensor de nivel).
+- ✅ Alerta de comida por acabarse: ESP32 → `POST /alerta` → panel web y celular (probado de punta a punta con un
+  servidor ntfy simulado); reenvío si el PC no la recibe; un sensor roto no bloquea la alimentación.
 - ✅ ESP32-CAM captura imágenes (`/capture`). ✅ Ambos firmwares compilan con la cadena oficial de Espressif
   (núcleos 2.0.17 y 3.0.7) y el del ESP32 arranca y funciona en el emulador QEMU. 🔧 Cámara y Wi-Fi reales.
 - ✅ Python recibe/procesa imágenes (prueba extremo a extremo HTTP con cámara simulada).
 - ✅ OpenCV participa realmente (decodificación, calidad, CLAHE, blob y ejecución de la red con `cv2.dnn`).
 - ✅ La clasificación devuelve 1 o 2 (y 0 cuando no debe dispensarse; probado con 2000 casos aleatorios).
 - ✅ Comunicación definida (HTTP, IP, endpoints, JSON, códigos, timeouts, reconexión).
-- ✅ Manejo de errores (13 situaciones, §25).
+- ✅ Manejo de errores (17 situaciones, §25).
 - ✅ Máquina de estados definida (§24) y probada.
 
 **MECÁNICA**
-- ✅ Tolva (≈ 1,4 L, paredes ≥ 55°).
+- ✅ Tolva (≈ 632 cm³ útiles hasta el surco MAX, paredes ≥ 55°), con sensor de nivel en la tapa (cápsula fuera del
+  alimento, alcance mínimo respetado, tabla altura → volumen verificada contra el firmware).
 - ✅ Mecanismo (disco volumétrico, sin paso directo tolva→canal, margen 15°).
 - ✅ MG995 (soporte con ranuras, sin interferencias con ninguna pieza).
 - ✅ Conducto (cerrado, más ancho que la salida).
 - ✅ Salida (la punta cae dentro del comedero y por encima de su borde).
 - ✅ Comedero (encastrado, desmontable).
 - ✅ Separación entre electrónica y alimento (verificada por intersección de volúmenes).
-- ✅ Torre modular (5 niveles, 19 piezas, tornillería M3).
+- ✅ Torre modular (5 niveles, 19 piezas + separadores, tornillería M3) y estación solar remota (2 piezas, pivote M4,
+  bandeja libre de 0° a 75°).
 - ✅ Mantenimiento (cajón, tapa de servicio, bandeja deslizante, piezas de alimento desmontables a mano).
-- ✅ Piezas imprimibles (todas ≤ 220×220×250 mm, sin soportes). 🔧 Ajuste fino de cotas de componentes con calibre.
+- ✅ Piezas imprimibles en la **Elegoo Neptune 4 Plus** (las 22 caben con margen; 5 placas; sin soportes; filamento
+  calculado laminando cada pieza). ✅ Manual de armado paso a paso. 🔧 Ajuste fino de cotas de componentes con calibre.
 
 **ENERGÍA**
 - ✅ Panel solar analizado (0,3 W, no 1 W).
-- ✅ Potencia calculada (1,74 W medios; picos 0,58 A en 5 V, 2,5 A en 6 V, 3,3 A en batería).
-- ✅ Consumo analizado (41,7 Wh/día) con script reproducible. 🔧 Medir consumos reales.
+- ✅ Potencia calculada (1,75 W medios; picos 0,59 A en 5 V, 2,5 A en 6 V, 3,3 A en batería).
+- ✅ Consumo analizado (42,0 Wh/día, incluye el segundo HC-SR04) con script reproducible. 🔧 Medir consumos reales.
 - ✅ Almacenamiento analizado (2S1P ≈ 8,5 h; 2S2P ≈ 17 h).
 - ✅ Regulación analizada (Buck 6,0 V y 5,0 V; caída de tensión en batería baja dentro del rango del MG995).
 - ✅ MG995 no depende directamente del GPIO.
@@ -1231,7 +1382,8 @@ Leyenda: ✅ verificado en este repositorio · 🔧 verificado en diseño, **pen
 **Datos que faltan para garantizar el 100 % de la conexión física** (deben medirse o leerse en su unidad):
 modelo exacto del HC-SR04 (5 V o "P"), versión del MG995 (180° o 360°) y su rango real de pulsos, presencia de diodo
 USB-VIN en su DevKit, V<sub>oc</sub>/I<sub>sc</sub> y dimensiones del panel, capacidad real de las celdas, corriente
-máxima del cargador 2S y del BMS elegidos, y tamaño de las croquetas.
+máxima del cargador 2S y del BMS elegidos, tamaño de las croquetas, altura de los transductores del HC-SR04 de la tolva
+y densidad aparente del alimento (para pasar el % de volumen a gramos).
 
 ---
 
@@ -1245,12 +1397,15 @@ máxima del cargador 2S y del BMS elegidos, y tamaño de las croquetas.
 * **Visión artificial:** OpenCV prepara y evalúa la imagen y ejecuta una red neuronal (MobileNetV2) que reconoce perros y
   gatos; si duda, no dispensa.
 * **Automatización:** máquina de estados con reglas de seguridad, dosificación por ciclos calibrados y manejo de errores.
+* **Aviso de comida (idea del profesor):** un segundo sensor ultrasónico en la tapa mide cuánto alimento queda; cuando
+  baja del 20 % el ESP32 avisa a la computadora y al celular, y si se vacía deja de "servir" en vacío.
 * **Por qué ESP32:** Wi-Fi integrado, PWM y ADC, barato, programable en C++. **Por qué ESP32-CAM:** cámara + Wi-Fi en un
   módulo pequeño. **Por qué OpenCV:** estándar de la industria, ejecuta redes neuronales en CPU. **Por qué HC-SR04:**
   detección simple y barata que evita tener la cámara y el PC trabajando todo el tiempo. **Por qué MG995:** par alto
   (10 kgf·cm) y engranajes metálicos.
-* **Sistema solar:** el panel capta energía y la carga en una batería a través de un elevador y un cargador; se demuestra
-  y se mide, y se explica con números por qué un panel de 0,3 W no puede mover el sistema (consume 1,7 W).
+* **Sistema solar:** el panel está en una estación aparte, donde hay sol (idea del profesor), y por un cable carga una
+  batería a través de un elevador y un cargador; se demuestra y se mide, y se explica con números por qué un panel de
+  0,3 W no puede mover el sistema (consume 1,75 W).
 * **La torre:** módulos que se apilan; el alimento baja por una columna cerrada al frente y la electrónica vive atrás y
   abajo, separada.
 * **La dosificación:** un disco con un hueco hace de "cucharita" de volumen fijo; la balanza dice cuántos gramos son.

@@ -1,9 +1,9 @@
 categoria,componente,cantidad,especificacion,uso,notas
 principal,ESP32 DevKit V1,1,ESP32-WROOM-32 30 pines (DOIT),Controlador y actuador,Verificar si tiene diodo entre USB y VIN
 principal,ESP32-CAM,1,AI-Thinker con OV2640 y PSRAM,Captura de imagenes,
-principal,HC-SR04,1,Version de 5 V,Deteccion de aproximacion,Si es HC-SR04P puede ir a 3.3 V sin divisor
+principal,HC-SR04,2,Version de 5 V,Deteccion de aproximacion (1) y nivel de alimento en la tolva (1),Recomendacion del profesor: el segundo va en la tapa (capsula 13b). Si es HC-SR04P puede ir a 3.3 V sin divisor
 principal,Servomotor MG995,1,Version 180 grados (NO la de giro continuo),Dosificador,Incluye horns y tornillos
-principal,Panel solar,1,~3 V 100 mA,Captacion solar demostrativa,Medir Voc Isc y dimensiones
+principal,Panel solar,1,~3 V 100 mA,Captacion solar demostrativa en la estacion remota (12a + 12b),Medir Voc Isc y dimensiones (PANEL_W PANEL_H en generar_stl.py)
 programacion,ESP32-CAM-MB o adaptador USB-TTL 3.3 V,1,,Cargar el firmware de la ESP32-CAM,
 auxiliar_energia,Celda Li-ion 18650,2,Marca reconocida y capacidad real,Almacenamiento,4 unidades para 2S2P (recomendado)
 auxiliar_energia,Portapilas 2x18650 en serie,1,,Montaje de las celdas,2 si se usa 2S2P
@@ -15,8 +15,8 @@ auxiliar_energia,Convertidor reductor Buck A,1,>= 3 A continuos (p. ej. XL4015),
 auxiliar_energia,Convertidor reductor Buck B,1,2-3 A (p. ej. LM2596 o MP1584),5.0 V para logica,Ajustar antes de conectar
 auxiliar_energia,Fusible lento 4 A + portafusible,1,,Proteccion del cableado de bateria,
 auxiliar_energia,Interruptor basculante,1,>= 6 A; recorte 19x13 mm,Corte general,Verificar recorte del cajon
-pasivo,Resistencia 1 kOhm 1/4 W,1,,R1 divisor ECHO (serie),
-pasivo,Resistencia 2 kOhm 1/4 W,1,,R2 divisor ECHO (a GND),
+pasivo,Resistencia 1 kOhm 1/4 W,2,,R1 y R5 divisores de los ECHO (serie),
+pasivo,Resistencia 2 kOhm 1/4 W,2,,R2 y R6 divisores de los ECHO (a GND),
 pasivo,Resistencia 330 Ohm 1/4 W,1,,R3 serie senal del servo,
 pasivo,Resistencia 10 kOhm 1/4 W,1,,R4 pull-down senal del servo,
 pasivo,Resistencia 100 kOhm 1/4 W 1%,4,,Divisores VBAT V6 y panel,
@@ -28,12 +28,20 @@ opcional,74AHCT125,1,,Adaptador 3.3 V -> 5 V si el MG995 no responde a 3.3 V,Sol
 montaje,Placa perforada 90x70 mm,1,Paso 2.54 mm,Placa de control,Ver Documentation/wiring/placa_control.md
 montaje,Tira de pines hembra 1x15,2,Paso 2.54 mm,Zocalo del ESP32,
 montaje,Conector JST-XH 2 pines (macho + hembra con cable),2,,J1 y J3,
-montaje,Conector JST-XH 4 pines (macho + hembra con cable),2,,J2 y J4,
+montaje,Conector JST-XH 4 pines (macho + hembra con cable),3,,J2 J4 y J5,
+montaje,Conector GX12 2 pines (macho aereo + hembra de panel),1,Rosca 12 mm,Estacion solar remota -> tapa trasera del cajon 16,Pin 1 = + (rojo) pin 2 = - (negro)
+montaje,Cable bipolar de exterior AWG 20-22,1,3-5 m segun donde haya sol,Panel -> GX12,Caida calculada ~0.05 V con 5 m
+montaje,Cable de 4 hilos (apantallado opcional) AWG 24-26,1,~1.2 m,HC-SR04 de la tolva -> J5,Por la ranura de la tapa y el conducto de la esquina; 20 cm flojos
 montaje,Conector XT30 o JST-VH (par),2,,Potencia entre modulos (6 V y 5 V),
 montaje,Cable AWG 20,1,~1 m rojo + 1 m negro,Bateria y servo,
 montaje,Cable AWG 22-26,1,~4 m surtido de colores,Senales y 5 V,
-montaje,Tornillo M3x10 (rosca en plastico),35,,Uniones de modulos tapas pods y bandeja,
-montaje,Tornillo M3x12,4,,Union base-cuerpo,
-montaje,Tuerca M3,12,,Pods y bandeja del ESP32,
-impresion,Filamento PETG apto para alimentos,1.5,kg,Piezas en contacto con el alimento,
-impresion,Filamento PLA o PETG,1,kg,Estructura y cápsulas,PETG/ASA si recibe sol
+montaje,Tornillo M3x10 (rosca en plastico),30,26 + 4 de repuesto,Uniones de modulos tapas pods bandeja viga pico y cajon,Ver Documentation/manual_armado
+montaje,Tornillo M3x12,6,,Union base-cuerpo (4) y tapa de la capsula del sensor de nivel (2),
+montaje,Tuerca M3,12,8 + 4 de repuesto,Pods y bandeja del ESP32,
+montaje,Tornillo M4x12 (cabeza moleteada o mariposa ideal),2,,Pivote de la estacion solar,
+montaje,Tuerca M4 + arandela M4,2,,Pivote de la estacion solar (tuerca alojada en 12b),
+montaje,Bridas plasticas 2.5 mm,6,,Cables (alivio de tension en la estacion solar),
+montaje,Cinta doble faz de espuma (VHB) de exterior,1,~20 cm,Panel en la bandeja 12b y modulos sin agujeros,
+montaje,Silicona neutra o termofusible,1,,Fijar el HC-SR04 de la tolva en su capsula,
+impresion,Filamento PETG apto para alimentos,1.5,kg,Piezas en contacto con el alimento + tapa + estacion solar + 06 y 16,~1.25 kg laminado (Mechanical/plan_impresion.md) + reserva
+impresion,Filamento PLA,1.2,kg,Estructura y capsulas de la torre,~1.0 kg laminado + reserva (Elegoo Neptune 4 Plus)

@@ -304,7 +304,7 @@ solo ~5 % del alimento; la tabla altura → volumen se calcula con el modelo 3D,
 | Volumen restante | Qué pasa |
 |---|---|
 | < 20 % (≈125 cm³) tres lecturas seguidas | alerta **COMIDA_BAJA** al PC (panel web) y, si se configuró ntfy, al celular |
-| < 3 % | alerta **COMIDA_AGOTADA**: el dispensador no entrega raciones (girar en vacío no alimenta) |
+| ≤ 3 % | alerta **COMIDA_AGOTADA**: el dispensador no entrega raciones (girar en vacío no alimenta) |
 | > 30 % después de recargar | alerta **COMIDA_REPUESTA**: todo vuelve a la normalidad |
 
 Los umbrales están en la sección 8 de `config.h`. Para convertir volumen en gramos, pese una taza de su alimento

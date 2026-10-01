@@ -217,7 +217,7 @@ def crear_manejador(servicio):
                 datos = json.loads(self.rfile.read(largo).decode("utf-8") or "{}")
                 alerta = servicio.alertas.registrar(datos.get("tipo"), datos.get("nivel"))
                 self._json(200, {"ok": True, "alerta": alerta})
-            except (ValueError, json.JSONDecodeError) as e:
+            except (ValueError, TypeError, AttributeError) as e:     # JSON inválido o con otra forma
                 self._json(400, {"ok": False, "error": str(e)})
 
         def do_GET(self):  # noqa: N802 (nombre impuesto por http.server)
@@ -252,16 +252,21 @@ def main():
     ap.add_argument("--camara", default=config.CAMARA_URL, help="URL base de la ESP32-CAM")
     ap.add_argument("--host", default=config.HOST)
     ap.add_argument("--puerto", type=int, default=config.PUERTO)
+    ap.add_argument("--esp32", default=config.ESP32_URL, help="URL base del ESP32 (el panel web lee su /status)")
+    ap.add_argument("--ntfy", default=config.NTFY_TOPICO,
+                    help="tema de ntfy para recibir las alertas en el celular (vacío = desactivado)")
     ap.add_argument("-v", "--verbose", action="store_true")
     args = ap.parse_args()
 
     logging.basicConfig(level=logging.DEBUG if args.verbose else logging.INFO,
                         format="%(asctime)s %(levelname)s %(message)s")
-    config.CAMARA_URL = args.camara
+    config.CAMARA_URL, config.ESP32_URL, config.NTFY_TOPICO = args.camara, args.esp32, args.ntfy
     servicio = ServicioVision(config)
     servidor = ThreadingHTTPServer((args.host, args.puerto), crear_manejador(servicio))
     log.info("Servidor de vision en http://%s:%d  (camara: %s, OpenCV %s)",
              args.host, args.puerto, config.CAMARA_URL, cv2.__version__)
+    log.info("Panel web: http://<IP-de-este-PC>:%d/   ·   alertas al celular: %s", args.puerto,
+             f"ntfy, tema '{config.NTFY_TOPICO}'" if config.NTFY_TOPICO else "desactivadas (--ntfy TEMA)")
     try:
         servidor.serve_forever()
     except KeyboardInterrupt:
