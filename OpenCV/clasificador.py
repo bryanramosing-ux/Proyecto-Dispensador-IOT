@@ -66,6 +66,7 @@ class Resultado:
     p_gato: float = 0.0
     fotos_validas: int = 0
     detalles: list = field(default_factory=list)
+    fotos_visita: int = 0
 
     @property
     def etiqueta(self):
@@ -80,6 +81,7 @@ class Resultado:
             "p_perro": round(self.p_perro, 3),
             "p_gato": round(self.p_gato, 3),
             "fotos_validas": self.fotos_validas,
+            "fotos_visita": self.fotos_visita,
         }
 
 
@@ -162,6 +164,24 @@ def decidir(p_perro, p_gato, umbral, margen, min_animal):
     if abs(p_perro - p_gato) < margen:
         return CLASE_INDETERMINADA, "AMBIGUO"
     return (CLASE_PERRO, "OK") if p_perro > p_gato else (CLASE_GATO, "OK")
+
+
+def combinar_visita(memoria, t, p_perro, p_gato, cfg):
+    """
+    Une la foto actual con las anteriores de la misma visita (función pura).
+
+    memoria: lista de (t, p_perro, p_gato) de fotos recientes en las que SE VIO un animal.
+    Devuelve (p_perro, p_gato, fotos_usadas, memoria_nueva).
+      * Las fotos con más de VENTANA_VISITA_S segundos se olvidan (otra visita).
+      * Una foto sin animal no se guarda ni se mezcla: se decide solo con ella (clase 0).
+      * Se promedian como máximo MAX_FOTOS_VISITA fotos (las más recientes).
+    """
+    memoria = [m for m in memoria if 0 <= t - m[0] <= cfg.VENTANA_VISITA_S]
+    if p_perro + p_gato < cfg.MIN_PROB_ANIMAL:
+        return p_perro, p_gato, 1, memoria
+    memoria = (memoria + [(t, p_perro, p_gato)])[-max(1, cfg.MAX_FOTOS_VISITA):]
+    return (float(np.mean([m[1] for m in memoria])), float(np.mean([m[2] for m in memoria])),
+            len(memoria), memoria)
 
 
 def clasificar_imagenes(clasificador, imagenes, cfg) -> Resultado:

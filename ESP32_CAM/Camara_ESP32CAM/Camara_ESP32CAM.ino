@@ -74,10 +74,13 @@ bool iniciarCamara() {
   c.pixel_format = PIXFORMAT_JPEG;
   c.frame_size = TAMANO_FOTO;
   c.jpeg_quality = CALIDAD_JPEG;
+  // MODO FOTO (idea del profesor: no grabar, solo sacar fotos): con un solo búfer el
+  // controlador NO captura cuadros de forma continua; toma uno cuando se lo pide /capture.
+  // El sensor sigue encendido, así la exposición automática ya está ajustada.
   if (psramFound()) {
-    c.fb_count = 2;
+    c.fb_count = 1;
     c.fb_location = CAMERA_FB_IN_PSRAM;
-    c.grab_mode = CAMERA_GRAB_LATEST;   // siempre el cuadro más reciente
+    c.grab_mode = CAMERA_GRAB_WHEN_EMPTY;
   } else {
     c.fb_count = 1;
     c.fb_location = CAMERA_FB_IN_DRAM;
@@ -96,7 +99,8 @@ bool iniciarCamara() {
   return true;
 }
 
-// Devuelve un cuadro "fresco": descarta el que pudo quedar en el búfer.
+// Devuelve un cuadro "fresco": el que quedó en el búfer puede ser de la foto anterior
+// (segundos o minutos atrás), así que se descarta y se toma uno nuevo.
 camera_fb_t* capturarFresca() {
   camera_fb_t* fb = esp_camera_fb_get();
   if (fb) esp_camera_fb_return(fb);

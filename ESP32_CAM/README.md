@@ -6,6 +6,12 @@ clasifica y no controla el servo.
 | Endpoint | Respuesta |
 |---|---|
 | `GET /capture` | `200 image/jpeg` (foto nueva, VGA 640×480) · `503` si la cámara falla |
+
+**Modo foto, no video (idea del profesor):** la cámara se configura con un solo búfer y `CAMERA_GRAB_WHEN_EMPTY`, así
+el controlador no captura cuadros de forma continua: toma uno cada vez que el PC pide `/capture` (solo cuando el
+HC-SR04 detectó a una mascota, una foto cada ~2 s mientras siga delante). El sensor queda encendido para que la
+exposición automática esté siempre ajustada, y el cuadro viejo que pudo quedar en el búfer se descarta: cada respuesta
+es una foto **actual**.
 | `GET /status` | `200 application/json` `{"camara":true,"psram":true,"fotos_ok":..,"rssi":..}` |
 
 ## Programación (no tiene USB propio)

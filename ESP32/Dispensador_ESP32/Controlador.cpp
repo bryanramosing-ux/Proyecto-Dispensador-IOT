@@ -278,7 +278,11 @@ void Controlador::actualizar() {
 
     // ------------------------------------------------------------------
     case Estado::CAPTURANDO:
-      if (hw_.camaraDisponible()) {
+      // En las fotos siguientes de la misma visita no se vuelve a consultar /status de la
+      // cámara: si falla, el PC responde 502 (ERROR_CAMARA). Así cada foto tarda menos.
+      if (intentos_ > 0) {
+        cambiarA(Estado::PROCESANDO, "nueva foto de la misma visita");
+      } else if (hw_.camaraDisponible()) {
         fallosCamara_ = 0;
         cambiarA(Estado::PROCESANDO, "camara lista, clasificando en PC");
       } else if (++fallosCamara_ >= 2) {

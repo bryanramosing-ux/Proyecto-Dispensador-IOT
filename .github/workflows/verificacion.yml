@@ -55,7 +55,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Máquina de estados (24 escenarios, incluye alertas de nivel de la tolva)
+      - name: Máquina de estados (26 escenarios, con alertas de nivel y fotos cada 2 s)
         run: make -C ESP32/test_host
       - name: Placa de control coherente con config.h (pines, divisores, conexiones)
         run: python3 Documentation/wiring/generar_placa_control.py

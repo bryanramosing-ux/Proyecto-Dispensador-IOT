@@ -59,8 +59,10 @@
 // -----------------------------------------------------------------------------
 // 4. CLASIFICACIÓN
 // -----------------------------------------------------------------------------
-#define MAX_INTENTOS_CLASIFICACION   3   // resultados 0 seguidos antes de desistir
-#define REINTENTO_CLASIFICACION_MS 4000UL
+// Idea del profesor: la cámara NO graba video; saca una foto cada ~2 s solo mientras la
+// mascota está delante, hasta identificarla (como máximo 5 fotos ≈ 10 s por visita).
+#define MAX_INTENTOS_CLASIFICACION   5   // fotos con resultado 0 seguidas antes de desistir
+#define REINTENTO_CLASIFICACION_MS 2000UL // espera entre fotos de una misma visita
 
 // -----------------------------------------------------------------------------
 // 5. DOSIFICADOR (disco volumétrico + MG995 de 180°)

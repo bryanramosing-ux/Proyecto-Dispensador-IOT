@@ -45,6 +45,13 @@ cuando se está acabando. Implementa la máquina de estados con manejo de errore
 
 No existe un comando remoto de "dar comida": dispensar manualmente exige acceso físico al USB.
 
+## Fotos cada 2 s (idea del profesor)
+
+Cuando el HC-SR04 confirma a la mascota, el ESP32 pide una clasificación (= una foto nueva). Si el PC responde 0 y la
+mascota sigue delante, pide otra a los `REINTENTO_CLASIFICACION_MS` (2 s), como máximo `MAX_INTENTOS_CLASIFICACION`
+(5) fotos por visita. El `/status` de la cámara se consulta solo antes de la primera foto; en las siguientes, si la
+cámara falla, el PC responde 502 y el ESP32 pasa a ERROR_CAMARA igual.
+
 ## Sensor de nivel y alertas
 
 Cada 60 s (y después de cada ración), en el estado ESPERANDO, se mide el nivel. Con 3 lecturas seguidas:
@@ -62,7 +69,7 @@ Todo esto corre automáticamente en GitHub Actions (`.github/workflows/verificac
 
 ```bash
 cd ESP32/test_host
-make                       # 24 escenarios de la máquina de estados (5 del sensor de nivel)
+make                       # 26 escenarios de la máquina de estados (5 del sensor de nivel, 2 de las fotos cada 2 s)
 git clone --depth 1 https://github.com/bblanchon/ArduinoJson
 make sintaxis              # compila todo el firmware (ESP32 y ESP32-CAM) contra stubs de Arduino, API núcleo 2.x y 3.x
 ```

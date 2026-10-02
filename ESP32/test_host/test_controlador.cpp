@@ -6,6 +6,7 @@
 #include <cstring>
 #include <deque>
 #include <string>
+#include <vector>
 
 #include "../Dispensador_ESP32/Controlador.h"
 #include "../Dispensador_ESP32/NivelGeometria.h"
@@ -21,17 +22,22 @@ struct FakeHW : Hardware {
   bool pcRecibe = true;
   std::deque<std::string> alertas;   // alertas entregadas al PC
   int intentosAlerta = 0;
-  int dosis = 0, ciclosTotales = 0, reinicios = 0, clasificaciones = 0;
+  int dosis = 0, ciclosTotales = 0, reinicios = 0, clasificaciones = 0, consultasCamara = 0;
+  std::vector<uint32_t> tFotos;      // instante de cada pedido de clasificación (= foto)
   bool verbose = false;
 
   uint32_t ahoraMs() override { return t; }
   float distanciaCm() override { return dist; }
   bool wifiConectado() override { return wifi; }
   void reconectarWifi() override {}
-  bool camaraDisponible() override { return cam; }
+  bool camaraDisponible() override {
+    consultasCamara++;
+    return cam;
+  }
   bool servidorDisponible() override { return pc; }
   RespuestaClasificacion clasificar(int) override {
     clasificaciones++;
+    tFotos.push_back(t);
     if (respuestas.empty()) return RespuestaClasificacion{};  // ERROR_SERVIDOR
     RespuestaClasificacion r = respuestas.front();
     respuestas.pop_front();
@@ -197,6 +203,42 @@ int main() {
     CHECK(hw.dosis == 0);
     CHECK(hw.clasificaciones == 3);
     CHECK(c.estado() == Estado::ESPERANDO);
+  }
+  {
+    prueba("Fotos cada 2 s mientras la mascota sigue delante (max. 5) sin repetir /status de la camara");
+    Parametros p = params();
+    p.reintentoClasificacionMs = 2000;
+    p.maxIntentosClasificacion = 5;
+    FakeHW hw;
+    Controlador c(hw, p);
+    c.iniciar();
+    for (int i = 0; i < 6; i++) hw.respuestas.push_back(resp(0, 0.4f, "BAJA_CONFIANZA"));
+    hw.dist = 20;
+    correr(c, hw, 30000);
+    CHECK(hw.clasificaciones == 5 && hw.dosis == 0);
+    CHECK(hw.consultasCamara == 1);                 // solo antes de la primera foto
+    bool cada2s = hw.tFotos.size() == 5;
+    for (size_t i = 1; i < hw.tFotos.size(); i++) {
+      uint32_t dt = hw.tFotos[i] - hw.tFotos[i - 1];
+      cada2s &= dt >= 2000 && dt <= 2200;
+    }
+    CHECK(cada2s);
+    CHECK(c.estado() == Estado::ESPERANDO);
+  }
+  {
+    prueba("Fotos cada 2 s: la tercera foto identifica al gato y se dispensa");
+    Parametros p = params();
+    p.reintentoClasificacionMs = 2000;
+    p.maxIntentosClasificacion = 5;
+    FakeHW hw;
+    Controlador c(hw, p);
+    c.iniciar();
+    hw.respuestas.push_back(resp(0, 0.2f, "SIN_MASCOTA"));      // todavía entrando al cuadro
+    hw.respuestas.push_back(resp(0, 0.5f, "BAJA_CONFIANZA"));
+    hw.respuestas.push_back(resp(CLASE_GATO, 0.93f));
+    hw.dist = 20;
+    correr(c, hw, 10000);
+    CHECK(hw.clasificaciones == 3 && hw.dosis == 1 && hw.ciclosTotales == 1);
   }
   {
     prueba("Imagen invalida y luego perro: el reintento si dispensa");

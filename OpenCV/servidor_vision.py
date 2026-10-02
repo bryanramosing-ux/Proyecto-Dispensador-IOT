@@ -1,11 +1,13 @@
 """
 Servidor de visión artificial (se ejecuta en el PC / notebook).
 
-Flujo de una clasificación:
-    ESP32  --GET /classify-->  PC (este programa)
-    PC     --GET /capture -->  ESP32-CAM   (se repite FOTOS_POR_CLASIFICACION veces)
-    PC     OpenCV + MobileNetV2  ->  1 = PERRO / 2 = GATO / 0 = INDETERMINADO
+Flujo de una clasificación (fotos, no video: idea del profesor):
+    ESP32  --GET /classify-->  PC (este programa)        cuando el HC-SR04 detecta a la mascota
+    PC     --GET /capture -->  ESP32-CAM                 una foto nueva (FOTOS_POR_CLASIFICACION)
+    PC     OpenCV + MobileNetV2  ->  se une con las fotos de la misma visita (combinar_visita)
+                                 ->  1 = PERRO / 2 = GATO / 0 = INDETERMINADO
     PC     --JSON-->  ESP32   (en la misma respuesta HTTP)
+    Si la respuesta es 0 y la mascota sigue delante, el ESP32 vuelve a pedir ~2 s después.
 
 Endpoints:
     GET  /classify   -> clasifica
@@ -13,6 +15,7 @@ Endpoints:
     POST /alerta     -> el ESP32 avisa del nivel de la tolva (comida baja, vacía...)
     GET  /           -> panel web para la demostración (nivel, alertas, clasificaciones)
     GET  /panel.json -> datos del panel web
+    GET  /ultima.jpg -> última foto analizada (para ver qué vio la cámara)
 
 Solo usa la biblioteca estándar de Python + OpenCV + NumPy (sin frameworks web).
 
@@ -36,8 +39,9 @@ import cv2
 
 import config
 from alertas import GestorAlertas
-from clasificador import (CLASE_INDETERMINADA, ClasificadorMascotas, Resultado,
-                          clasificar_imagenes, decodificar_jpeg)
+from clasificador import (CLASE_GATO, CLASE_INDETERMINADA, CLASE_PERRO, ClasificadorMascotas,
+                          Resultado, clasificar_imagenes, combinar_visita, decidir,
+                          decodificar_jpeg)
 
 log = logging.getLogger("vision")
 
@@ -66,15 +70,17 @@ def estado_camara(url_base, timeout_s):
 
 
 class ServicioVision:
-    def __init__(self, cfg):
+    def __init__(self, cfg, clasificador=None):
         self.cfg = cfg
-        self.clasificador = ClasificadorMascotas(cfg.MODELO_ONNX, cfg.ETIQUETAS)
+        self.clasificador = clasificador or ClasificadorMascotas(cfg.MODELO_ONNX, cfg.ETIQUETAS)
         # Una sola cámara: las clasificaciones se atienden de a una.
         self.candado = threading.Lock()
         self.total = 0
         self.ultimo = None
         self.historial = []
         self.alertas = GestorAlertas(cfg)
+        self.visita = []          # fotos recientes con animal (combinar_visita)
+        self.ultima_foto = None   # bytes JPEG de la última foto analizada
 
     def clasificar(self, distancia_cm=None):
         """Devuelve (codigo_http, dict_respuesta)."""
@@ -92,10 +98,13 @@ class ServicioVision:
                 return 502, self._respuesta(res, t0)
 
             res = clasificar_imagenes(self.clasificador, imagenes, self.cfg)
+            if res.fotos_validas:
+                res = self._unir_con_visita(res)
+            self.ultima_foto = jpegs[-1] if jpegs else self.ultima_foto
             self.total += 1
             respuesta = self._respuesta(res, t0)
             self.ultimo = dict(respuesta, hora=datetime.now().isoformat(timespec="seconds"),
-                               distancia_cm=distancia_cm)
+                               distancia_cm=distancia_cm, numero=self.total)
             self.historial = ([self.ultimo] + self.historial)[:10]
             log.info("Clasificacion #%d -> %s (%s) conf=%.2f perro=%.2f gato=%.2f dist=%s cm %s",
                      self.total, res.etiqueta, res.motivo, res.confianza, res.p_perro,
@@ -103,6 +112,15 @@ class ServicioVision:
             if self.cfg.GUARDAR_CAPTURAS and jpegs:
                 self._guardar(jpegs, res)
             return 200, respuesta
+
+    def _unir_con_visita(self, res):
+        pp, pg, n, self.visita = combinar_visita(self.visita, time.monotonic(), res.p_perro,
+                                                 res.p_gato, self.cfg)
+        clase, motivo = decidir(pp, pg, self.cfg.UMBRAL_CONFIANZA, self.cfg.MARGEN_MINIMO,
+                                self.cfg.MIN_PROB_ANIMAL)
+        if clase in (CLASE_PERRO, CLASE_GATO):
+            self.visita = []      # la visita terminó con una decisión
+        return Resultado(clase, motivo, max(pp, pg), pp, pg, res.fotos_validas, res.detalles, n)
 
     def _respuesta(self, res, t0):
         d = res.a_dict()
@@ -167,6 +185,8 @@ ul{list-style:none;margin:0;padding:0}li{padding:6px 0;border-bottom:1px solid #
 <p id="detalle"></p></section>
 <section class="c"><h2>Alertas</h2><ul id="alertas"><li><small>Sin alertas</small></li></ul></section>
 <section class="c"><h2>Últimas clasificaciones</h2><ul id="clases"><li><small>Todavía no hay</small></li></ul></section>
+<section class="c"><h2>Última foto analizada</h2><img id="foto" alt="Todavía no hay fotos"
+style="width:100%;border-radius:8px;background:#8882;min-height:60px"><p id="pie"><small>—</small></p></section>
 </main><script>
 const nombre={1:"🐶 PERRO",2:"🐱 GATO",0:"— no dispensar"};
 function li(t){const e=document.createElement("li");e.innerHTML=t;return e}
@@ -174,13 +194,15 @@ async function actualizar(){try{const d=await (await fetch("panel.json")).json()
 const n=e.nivel_tolva;const sin=(n===undefined||n<0);
 document.getElementById("nivel").textContent=sin?"sin lectura":Math.round(n)+" %";
 const b=document.getElementById("barra");b.style.width=(sin?0:n)+"%";
-b.style.background=sin?"#999":(n<=5?"var(--mal)":(n<20?"var(--alerta)":"var(--ok)"));
+b.style.background=sin?"#999":(n<=3?"var(--mal)":(n<20?"var(--alerta)":"var(--ok)"));
 document.getElementById("alertaTolva").textContent=e.alerta_tolva&&e.alerta_tolva!=="NINGUNA"?"⚠ "+e.alerta_tolva:"";
 document.getElementById("estado").textContent=e.error?"sin conexión":e.estado;
 document.getElementById("detalle").textContent=e.error?e.error:`Batería ${e.v_bateria} V · servo ${e.v_servo} V · panel ${e.v_panel} V · raciones perro ${e.raciones_perro}, gato ${e.raciones_gato}`;
 const ua=document.getElementById("alertas");ua.innerHTML="";(d.alertas.length?d.alertas:[]).forEach(a=>ua.appendChild(li(`<b>${a.titulo}</b><br>${a.mensaje}<br><small>${a.hora}</small>`)));
 if(!d.alertas.length)ua.appendChild(li("<small>Sin alertas</small>"));
-const uc=document.getElementById("clases");uc.innerHTML="";d.clasificaciones.forEach(c=>uc.appendChild(li(`<b>${nombre[c.clase]}</b> ${c.motivo} · conf ${c.confianza}<br><small>${c.hora}</small>`)));
+const uc=document.getElementById("clases");uc.innerHTML="";d.clasificaciones.forEach(c=>uc.appendChild(li(`<b>${nombre[c.clase]}</b> ${c.motivo} · conf ${c.confianza}<br><small>${c.hora} · ${c.ms} ms · fotos de la visita: ${c.fotos_visita}</small>`)));
+const u=d.clasificaciones[0];if(u&&u.numero!==window.fotoNum){window.fotoNum=u.numero;document.getElementById("foto").src="ultima.jpg?n="+u.numero;
+document.getElementById("pie").innerHTML=`<b>${nombre[u.clase]}</b> ${u.motivo} · ${u.ms} ms<br><small>${u.hora}</small>`;}
 if(!d.clasificaciones.length)uc.appendChild(li("<small>Todavía no hay</small>"));}catch(err){document.getElementById("estado").textContent="PC sin datos"}}
 actualizar();setInterval(actualizar,5000);
 </script></body></html>"""
@@ -204,6 +226,17 @@ def crear_manejador(servicio):
             self.send_response(200)
             self.send_header("Content-Type", "text/html; charset=utf-8")
             self.send_header("Content-Length", str(len(datos)))
+            self.end_headers()
+            self.wfile.write(datos)
+
+        def _jpeg(self, datos):
+            if not datos:
+                self._json(404, {"error": "todavia no hay fotos"})
+                return
+            self.send_response(200)
+            self.send_header("Content-Type", "image/jpeg")
+            self.send_header("Content-Length", str(len(datos)))
+            self.send_header("Cache-Control", "no-store")
             self.end_headers()
             self.wfile.write(datos)
 
@@ -233,9 +266,12 @@ def crear_manejador(servicio):
                     self._json(codigo, datos)
                 elif url.path == "/status":
                     self._json(200, servicio.estado())
+                elif url.path == "/ultima.jpg":
+                    self._jpeg(servicio.ultima_foto)
                 else:
                     self._json(404, {"error": "ruta desconocida",
-                                     "rutas": ["/", "/classify", "/status", "/panel.json", "POST /alerta"]})
+                                     "rutas": ["/", "/classify", "/status", "/panel.json", "/ultima.jpg",
+                                               "POST /alerta"]})
             except Exception as e:  # noqa: BLE001 - nunca dejar al ESP32 sin respuesta
                 log.exception("Error interno")
                 self._json(500, {"clase": 0, "etiqueta": "INDETERMINADO",

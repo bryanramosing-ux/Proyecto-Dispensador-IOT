@@ -8,6 +8,7 @@
 | OpenCV | Decodifica el JPEG, mide brillo y nitidez (varianza del Laplaciano), aplica CLAHE, prepara el *blob* y **ejecuta la red con `cv2.dnn`** |
 | Modelo MobileNetV2 (ImageNet) | Interpreta la imagen. P(perro) = suma de las 118 razas (índices 151–268); P(gato) = suma de 5 gatos domésticos (281–285) |
 | Regla de decisión | 1 = PERRO, 2 = GATO, 0 = INDETERMINADO (no dispensar) |
+| Fotos de la visita | Cada pedido es **una** foto; si la mascota sigue delante sin identificarse, el ESP32 pide otra cada ~2 s. Las fotos de la misma visita en las que se ve un animal (últimos 5 s, máx. 3) se promedian (`combinar_visita`) |
 
 ## Instalación y uso
 
@@ -45,11 +46,22 @@ Permitir el puerto 8000 en el firewall del PC (Windows lo pregunta la primera ve
 ## Probar sin hardware
 
 ```bash
-python -m unittest discover -s tests -v                   # 22 pruebas (sin cámara ni modelo; incluye alertas y panel)
+python -m unittest discover -s tests -v                   # 29 pruebas (sin cámara ni modelo; visitas, alertas, panel)
 python simulador_camara.py --imagenes carpeta_fotos --puerto 8081 &
 python servidor_vision.py --camara http://127.0.0.1:8081
 curl "http://127.0.0.1:8000/classify?dist=25"
 ```
+
+## ¿Wi-Fi o local? Medir los tiempos de la red
+
+Todo el análisis es **local**: la foto va de la ESP32-CAM al PC por la red local y no pasa por Internet (README
+principal, §13.5). Para medir los tiempos reales de su red (con el hardware encendido y el servidor en marcha):
+
+```bash
+python medir_red.py --clasificar         # ESP32 /status, cámara /status y /capture, análisis y /classify completo
+```
+
+La última foto analizada se ve en el panel web y en `http://IP-DEL-PC:8000/ultima.jpg`.
 
 ## Calibrar umbrales con fotos reales de la cámara instalada
 

@@ -49,9 +49,15 @@ NITIDEZ_MIN = _env("NITIDEZ_MIN", 40.0, float)    # varianza del Laplaciano
 ANCHO_MIN = 160
 ALTO_MIN = 120
 
-# Número de fotos por clasificación. Se promedian las probabilidades de las
-# fotos válidas: reduce errores por una foto movida o mal encuadrada.
-FOTOS_POR_CLASIFICACION = _env("FOTOS_POR_CLASIFICACION", 2, int)
+# Fotos en vez de video (idea del profesor): cada pedido del ESP32 es UNA foto nueva y,
+# mientras la mascota siga delante sin identificarse, el ESP32 pide otra cada ~2 s
+# (REINTENTO_CLASIFICACION_MS en ESP32/Dispensador_ESP32/config.h).
+FOTOS_POR_CLASIFICACION = _env("FOTOS_POR_CLASIFICACION", 1, int)
+# Las fotos de una misma visita en las que se ve un animal se promedian: tomadas con
+# ~2 s de diferencia son más independientes que dos cuadros seguidos, así una foto
+# movida o un perro y un gato juntos no producen una decisión equivocada.
+VENTANA_VISITA_S = _env("VENTANA_VISITA_S", 5.0, float)   # fotos más viejas no se mezclan
+MAX_FOTOS_VISITA = _env("MAX_FOTOS_VISITA", 3, int)
 
 # --- Registro -----------------------------------------------------------------
 GUARDAR_CAPTURAS = _env("GUARDAR_CAPTURAS", 1, int) == 1

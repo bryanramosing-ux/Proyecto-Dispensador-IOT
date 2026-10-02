@@ -20,8 +20,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 import config  # noqa: E402
 import servidor_vision  # noqa: E402
-from clasificador import (Prediccion, clasificar_imagenes, decidir,  # noqa: E402
-                          decodificar_jpeg, evaluar_calidad)
+from clasificador import (Prediccion, clasificar_imagenes, combinar_visita,  # noqa: E402
+                          decidir, decodificar_jpeg, evaluar_calidad)
 
 
 def imagen_textura(brillo=128, tam=(480, 640)):
@@ -100,6 +100,46 @@ class TestClasificarImagenes(unittest.TestCase):
         self.assertEqual((r.clase, r.motivo), (0, "IMAGEN_INVALIDA"))
 
 
+class ClasificadorSecuencia:
+    """Devuelve una predicción distinta en cada foto (una visita que evoluciona)."""
+
+    def __init__(self, secuencia):
+        self.secuencia = list(secuencia)
+
+    def predecir(self, img):
+        pp, pg = self.secuencia.pop(0) if len(self.secuencia) > 1 else self.secuencia[0]
+        return Prediccion(pp, pg, 0, max(pp, pg), "falso")
+
+
+class TestVisita(unittest.TestCase):
+    """Fotos cada ~2 s de una misma visita (idea del profesor): se promedian las que muestran un animal."""
+
+    def test_dos_fotos_de_perro_se_promedian(self):
+        pp, pg, n, mem = combinar_visita([(0.0, 0.70, 0.05)], 2.1, 0.90, 0.02, config)
+        self.assertEqual(n, 2)
+        self.assertAlmostEqual(pp, 0.80)
+        self.assertEqual(decidir(pp, pg, 0.6, 0.3, 0.5), (1, "OK"))
+
+    def test_perro_y_gato_en_la_misma_visita_no_dispensa(self):
+        pp, pg, n, _ = combinar_visita([(0.0, 0.92, 0.02)], 2.0, 0.03, 0.90, config)
+        self.assertEqual(n, 2)
+        self.assertEqual(decidir(pp, pg, 0.6, 0.3, 0.5)[0], 0)
+
+    def test_foto_vieja_es_otra_visita(self):
+        _, _, n, mem = combinar_visita([(0.0, 0.03, 0.90)], 6.0, 0.92, 0.02, config)
+        self.assertEqual((n, len(mem)), (1, 1))
+
+    def test_foto_sin_animal_no_se_guarda(self):
+        pp, pg, n, mem = combinar_visita([(0.0, 0.9, 0.0)], 2.0, 0.05, 0.05, config)
+        self.assertEqual((n, len(mem), round(pp, 2)), (1, 1, 0.05))
+
+    def test_maximo_de_fotos(self):
+        mem = []
+        for i in range(6):
+            _, _, n, mem = combinar_visita(mem, i * 0.5, 0.8, 0.1, config)
+        self.assertEqual((n, len(mem)), (config.MAX_FOTOS_VISITA, config.MAX_FOTOS_VISITA))
+
+
 class TestServidorExtremoAExtremo(unittest.TestCase):
     """Cámara simulada + servidor real (con clasificador falso) por HTTP."""
 
@@ -125,13 +165,10 @@ class TestServidorExtremoAExtremo(unittest.TestCase):
         cfg = types.SimpleNamespace(**{k: getattr(config, k) for k in dir(config) if k.isupper()})
         cfg.CAMARA_URL = f"http://127.0.0.1:{cls.cam.server_port}"
         cfg.GUARDAR_CAPTURAS = False
-        servicio = servidor_vision.ServicioVision.__new__(servidor_vision.ServicioVision)
-        servicio.cfg, servicio.clasificador = cfg, ClasificadorFalso(0.03, 0.91)
-        servicio.candado, servicio.total, servicio.ultimo = threading.Lock(), 0, None
-        servicio.historial = []
         cfg.ESP32_URL = "http://127.0.0.1:9"    # ESP32 apagado: el panel debe informarlo
         cfg.NTFY_TOPICO = ""
-        servicio.alertas = servidor_vision.GestorAlertas(cfg)
+        cls.cfg = cfg
+        servicio = servidor_vision.ServicioVision(cfg, ClasificadorFalso(0.03, 0.91))
         cls.servicio = servicio
         cls.srv = ThreadingHTTPServer(("127.0.0.1", 0), servidor_vision.crear_manejador(servicio))
         threading.Thread(target=cls.srv.serve_forever, daemon=True).start()
@@ -155,6 +192,25 @@ class TestServidorExtremoAExtremo(unittest.TestCase):
         codigo, d = self.get("/classify?dist=25")
         self.assertEqual(codigo, 200)
         self.assertEqual((d["clase"], d["etiqueta"], d["motivo"]), (2, "GATO", "OK"))
+
+    def test_ultima_foto(self):
+        self.get("/classify")
+        with urllib.request.urlopen(self.url + "/ultima.jpg", timeout=10) as r:
+            self.assertEqual(r.headers["Content-Type"], "image/jpeg")
+            self.assertIsNotNone(decodificar_jpeg(r.read()))
+
+    def test_visita_que_se_identifica_en_la_tercera_foto(self):
+        """Entrando al cuadro -> dudosa -> gato: la tercera foto (promediada con la segunda) decide."""
+        original = self.servicio.clasificador
+        self.servicio.clasificador = ClasificadorSecuencia([(0.05, 0.10), (0.10, 0.55), (0.02, 0.95)])
+        try:
+            r1, r2, r3 = (self.get("/classify")[1] for _ in range(3))
+        finally:
+            self.servicio.clasificador = original
+        self.assertEqual((r1["clase"], r1["motivo"], r1["fotos_visita"]), (0, "SIN_MASCOTA", 1))
+        self.assertEqual((r2["clase"], r2["motivo"], r2["fotos_visita"]), (0, "BAJA_CONFIANZA", 1))
+        self.assertEqual((r3["clase"], r3["fotos_visita"]), (2, 2))
+        self.assertEqual(self.servicio.visita, [])       # la visita terminó con una decisión
 
     def test_camara_caida(self):
         original = self.servicio.cfg.CAMARA_URL

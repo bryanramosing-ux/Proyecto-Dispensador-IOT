@@ -25,6 +25,14 @@ de calibración y plan de pruebas.
 >    envía una **alerta** al PC (panel web y, opcionalmente, notificación al celular con ntfy) cuando la comida se está
 >    acabando (§18, §24, §25).
 >
+> **Versión 3 (dos preguntas más del profesor):**
+> 3. **¿Wi-Fi o local?** El sistema funciona **de manera local**: los tres equipos se hablan dentro de una red local
+>    (Wi-Fi es solo el medio) y **no usan Internet**; la foto no sale de la sala y se analiza en el PC. Comparación de
+>    opciones, cómo armar una red propia para la feria y una herramienta para medir los tiempos reales en §13.5.
+> 4. **Fotos en vez de grabar video:** la ESP32-CAM pasó a **modo foto** (no captura cuadros de forma continua) y,
+>    cuando el HC-SR04 detecta a la mascota, se toma **una foto cada ~2 s** solo mientras esté delante, hasta
+>    identificarla (máx. 5). Las fotos de la misma visita se combinan para no equivocarse (§11, §12, §24).
+>
 > Además: todas las piezas se verificaron para el volumen de la **Elegoo Neptune 4 Plus** (320 × 320 × 385 mm) con un
 > [plan de impresión](Mechanical/plan_impresion.md) por placas, hay un [manual de armado paso a paso](Documentation/manual_armado/Manual_de_Armado.md)
 > y un [esquema de conexiones completo](Documentation/wiring/esquema_conexiones.svg) con su
@@ -71,9 +79,9 @@ Actions, `.github/workflows/verificacion.yml`):
 * **Firmware del ESP32 ejecutado en el emulador QEMU de Espressif**: arranca, entra en la máquina de estados y
   responde a todos los comandos, incluido `NIVEL` (autoprueba de 14 puntos). El emulador encontró un error real que se
   corrigió (el botón BOOT mantenido borraba errores cada 50 ms).
-* 24 escenarios de la máquina de estados en PC (5 del sensor de nivel: alerta única, tolva vacía, recarga parcial,
-  sensor sin lectura, reintento si el PC no recibe la alerta); 22 pruebas del servicio de visión (extremo a extremo por
-  HTTP, alertas, panel web y reenvío al celular); **modelo real** sobre 25 imágenes públicas: 9/9 perros, 5/5 gatos y 0
+* 26 escenarios de la máquina de estados en PC (5 del sensor de nivel; 2 de las fotos cada 2 s: ritmo, máximo de 5
+  y que no se repita la consulta a la cámara); 29 pruebas del servicio de visión (extremo a extremo por HTTP, fotos de
+  una misma visita, alertas, panel web y reenvío al celular); **modelo real** sobre 25 imágenes públicas: 9/9 perros, 5/5 gatos y 0
   errores peligrosos con 11 animales parecidos (lobo, coyote, dingo, zorros, hiena, puma, lince, tigre, guepardo) y un peluche.
 * 45 comprobaciones geométricas (cero interferencias en 171 pares, recorrido del alimento continuo, cápsula del sensor
   de nivel fuera del alimento, bandeja solar libre de 0° a 75°, **las 22 piezas caben en la Neptune 4 Plus**) y la
@@ -225,12 +233,12 @@ flowchart TD
   J --> K{¿ESP32-CAM responde /status?}
   K -- no, 2 veces --> EC[ERROR_CAMARA: reintento cada 30 s] --> F
   K -- sí --> L[PROCESANDO: GET /classify al PC, timeout 10 s]
-  L --> M[PC: descarga 2 fotos, calidad, OpenCV + modelo]
+  L --> M[PC: 1 foto nueva, calidad, OpenCV + modelo, se une con las fotos de la visita]
   M --> N{¿Respuesta válida?}
   N -- timeout / JSON inválido --> ECL[ERROR_CLASIFICACION: reintento 30 s] --> F
   N -- 502 cámara --> EC
-  N -- clase 0: borrosa, oscura, incierta, sin mascota --> O{¿Intentos < 3 y sigue presente?}
-  O -- sí, tras 4 s --> K
+  N -- clase 0: borrosa, oscura, incierta, sin mascota --> O{¿Menos de 5 fotos y sigue presente?}
+  O -- sí, otra foto tras 2 s --> L
   O -- no --> P[No dispensar, esperar zona libre] --> F
   N -- 1 PERRO / 2 GATO --> Q{¿Clase habilitada, cooldown cumplido, límite diario OK, tolva no agotada?}
   Q -- no --> P
@@ -311,8 +319,11 @@ sin eco** (aviso, no bloquea) y **PC que no recibe la alerta** (reenvío cada 30
 
 * Firmware mínimo (`ESP32_CAM/Camara_ESP32CAM`): inicializa la cámara (pines fijos AI-Thinker), se conecta al Wi-Fi
   con IP fija y ofrece dos rutas HTTP: `GET /capture` (JPEG nuevo) y `GET /status` (diagnóstico).
-* **Imagen:** VGA 640×480, JPEG calidad 12, doble búfer en PSRAM con `CAMERA_GRAB_LATEST`; antes de responder se
-  descarta un cuadro para entregar siempre una foto **actual**.
+* **Modo foto (idea del profesor: no grabar video):** un solo búfer en PSRAM con `CAMERA_GRAB_WHEN_EMPTY`; así el
+  controlador **no captura cuadros de forma continua**: toma uno cuando el PC pide `/capture`. El sensor queda encendido,
+  de modo que la exposición automática ya está ajustada. Como el búfer puede conservar la foto anterior (de segundos o
+  minutos atrás), se descarta y se toma una nueva: siempre se entrega una foto **actual**. VGA 640×480, JPEG calidad 12.
+  Con nadie delante no se saca ni se envía ninguna foto.
 * **Robustez:** reintento de inicialización de la cámara cada 10 s si falla; reconexión Wi-Fi cada 5 s; reinicio a
   los 2 min sin red; LED rojo (GPIO33) encendido si hay problema; flash desactivado por defecto.
 * **Programación:** no tiene USB: placa ESP32-CAM-MB o adaptador USB-TTL de 3,3 V con GPIO0 a GND al cargar.
@@ -347,7 +358,15 @@ si no                                 → 1 si P(perro) > P(gato), si no 2
 
 Antes del modelo, cada foto pasa un **control de calidad**: JPEG decodificable y ≥ 160×120 (si no,
 `IMAGEN_INVALIDA`); brillo medio entre 35 y 225 (`IMAGEN_OSCURA` / `IMAGEN_SOBREEXPUESTA`); varianza del
-Laplaciano ≥ 40 (`IMAGEN_BORROSA`). Se toman **2 fotos** y se promedian las probabilidades de las válidas.
+Laplaciano ≥ 40 (`IMAGEN_BORROSA`).
+
+**Fotos en vez de video (idea del profesor).** Cada pedido del ESP32 es **una** foto nueva. Si con ella no alcanza
+para decidir (clase 0) y la mascota sigue delante, el ESP32 pide otra **cada ~2 s**, como máximo 5 por visita (≈ 10 s).
+El PC **combina las fotos de la misma visita en las que se ve un animal** (las de los últimos 5 s, máximo 3): tomadas con
+2 s de diferencia son más independientes que dos cuadros seguidos, así que una foto movida no decide sola y un perro y
+un gato en la misma visita dan `AMBIGUO` → no se dispensa. Una foto sin animal (la mascota todavía entrando al cuadro)
+no se mezcla. Cuando se decide PERRO o GATO, la visita termina y se empieza de cero. El panel web muestra la última
+foto analizada, el resultado, el tiempo en ms y cuántas fotos de la visita se usaron.
 
 **Resultado obtenido en este repositorio** (modelo real; `tests/descargar_imagenes_prueba.py` +
 `tests/test_modelo_real.py`):
@@ -379,7 +398,7 @@ modelo, por lo que el resultado es optimista. **No reemplaza la calibración con
 |---|---|---|---|
 | ESP32 | 192.168.1.52 (`config.h`) | PC (`/classify`, `/status`, `/alerta`), cámara (`/status`) | `/status` (puerto 80) |
 | ESP32-CAM | 192.168.1.51 (`config.h` de la cámara) | — | `/capture`, `/status` (puerto 80) |
-| PC | 192.168.1.50 (fijar por DHCP reservado o IP manual) | Cámara (`/capture`, `/status`), ESP32 (`/status`, para el panel), ntfy.sh (opcional) | `/classify`, `/status`, `/alerta`, `/`, `/panel.json` (puerto 8000) |
+| PC | 192.168.1.50 (fijar por DHCP reservado o IP manual) | Cámara (`/capture`, `/status`), ESP32 (`/status`, para el panel), ntfy.sh (opcional) | `/classify`, `/status`, `/alerta`, `/`, `/panel.json`, `/ultima.jpg` (puerto 8000) |
 
 Requisitos de red: **2,4 GHz** (el ESP32 no usa 5 GHz), **WPA2-Personal** (las redes con portal cautivo o
 WPA2-Enterprise de las universidades no sirven). Para la feria se recomienda un router propio o el punto de acceso
@@ -391,10 +410,11 @@ del celular, ajustando las tres IP a su subred.
 |---|---|---|---|---|---|
 | ESP32-CAM | `GET http://192.168.1.51/capture` | — | `200 image/jpeg` (VGA; decenas de kB según la escena) | `503` cámara no inicializada / fallo de captura | El PC espera 3 s por foto |
 | ESP32-CAM | `GET http://192.168.1.51/status` | — | `200 {"camara":true,"psram":true,"fotos_ok":12,"fotos_fallidas":0,"rssi":-58,"heap":..,"uptime_s":..}` | `503` si la cámara falló | ESP32: 2 s |
-| PC | `GET http://192.168.1.50:8000/classify?dist=24` | `dist` = distancia en cm (solo registro) | `200 {"clase":1,"etiqueta":"PERRO","confianza":0.93,"motivo":"OK","p_perro":0.93,"p_gato":0.01,"fotos_validas":2,"ms":640}` | `200` con `"clase":0` y `motivo` ∈ {`BAJA_CONFIANZA`,`AMBIGUO`,`SIN_MASCOTA`,`IMAGEN_BORROSA`,`IMAGEN_OSCURA`,`IMAGEN_SOBREEXPUESTA`,`IMAGEN_INVALIDA`}; `502 {"clase":0,"motivo":"CAMARA_NO_RESPONDE"}`; `500 {"clase":0,"motivo":"ERROR_INTERNO"}` | ESP32: conexión 2 s, respuesta 10 s |
+| PC | `GET http://192.168.1.50:8000/classify?dist=24` | `dist` = distancia en cm (solo registro) | `200 {"clase":1,"etiqueta":"PERRO","confianza":0.93,"motivo":"OK","p_perro":0.93,"p_gato":0.01,"fotos_validas":1,"fotos_visita":2,"ms":420}` | `200` con `"clase":0` y `motivo` ∈ {`BAJA_CONFIANZA`,`AMBIGUO`,`SIN_MASCOTA`,`IMAGEN_BORROSA`,`IMAGEN_OSCURA`,`IMAGEN_SOBREEXPUESTA`,`IMAGEN_INVALIDA`}; `502 {"clase":0,"motivo":"CAMARA_NO_RESPONDE"}`; `500 {"clase":0,"motivo":"ERROR_INTERNO"}` | ESP32: conexión 2 s, respuesta 10 s |
 | PC | `GET http://192.168.1.50:8000/status` | — | Estado del servidor, versión de OpenCV, modelo, estado de la cámara, última clasificación y umbrales | — | ESP32: 2 s |
 | PC | `POST http://192.168.1.50:8000/alerta` | `{"tipo":"COMIDA_BAJA","nivel":18}` (tipo ∈ {`COMIDA_BAJA`,`COMIDA_AGOTADA`,`COMIDA_REPUESTA`,`SENSOR_NIVEL_SIN_LECTURA`}) | `200 {"ok":true,"alerta":{...,"mensaje":"La comida del dispensador se está acabando (nivel ~18 %). Recargue la tolva."}}` | `400` tipo desconocido o JSON inválido | ESP32: 2 s; si falla, reenvío cada 30 s |
-| PC | `GET http://192.168.1.50:8000/` y `/panel.json` | — | Panel web (se actualiza cada 5 s): barra de nivel de la tolva, estado del ESP32, alertas y últimas clasificaciones | Si el ESP32 no responde, el panel lo indica | PC → ESP32: 1 s |
+| PC | `GET http://192.168.1.50:8000/` y `/panel.json` | — | Panel web (se actualiza cada 5 s): barra de nivel de la tolva, estado del ESP32, alertas, últimas clasificaciones y la última foto analizada | Si el ESP32 no responde, el panel lo indica | PC → ESP32: 1 s |
+| PC | `GET http://192.168.1.50:8000/ultima.jpg` | — | `200 image/jpeg`: la última foto que analizó el PC | `404` si todavía no hay fotos | — |
 | ESP32 | `GET http://192.168.1.52/status` | — | `{"estado":"ESPERANDO","distancia_cm":48.2,"ultima_clase":2,...,"v_bateria":7.61,"v_servo":6.02,"v_panel":2.85,"nivel_tolva":64,"alerta_tolva":"NINGUNA","alerta_pendiente":false,"rssi":-60}` | — | — |
 
 **Endpoints que NO existen a propósito:** `/feed` (un "dar comida" remoto permitiría sobrealimentar desde la red;
@@ -408,16 +428,16 @@ sequenceDiagram
   participant E as ESP32
   participant P as PC (Python + OpenCV)
   participant C as ESP32-CAM
-  E->>C: GET /status (2 s)
+  E->>C: GET /status (2 s, solo antes de la primera foto)
   C-->>E: 200 {"camara":true}
-  E->>P: GET /classify?dist=24 (10 s)
-  P->>C: GET /capture (3 s)
-  C-->>P: 200 image/jpeg
-  P->>C: GET /capture (3 s)
-  C-->>P: 200 image/jpeg
-  P->>P: calidad + CLAHE + blob + cv2.dnn + decisión
-  P-->>E: 200 {"clase":2,"etiqueta":"GATO","confianza":0.97}
-  E->>E: validar reglas y mover MG995
+  loop una foto cada ~2 s mientras la mascota siga delante (máx. 5)
+    E->>P: GET /classify?dist=24 (10 s)
+    P->>C: GET /capture (3 s)
+    C-->>P: 200 image/jpeg (foto nueva)
+    P->>P: calidad + CLAHE + blob + cv2.dnn + fotos de la visita + decisión
+    P-->>E: 200 {"clase":0|1|2,...}
+  end
+  E->>E: con 1 o 2: validar reglas y mover MG995
   Note over E: cada 60 s en ESPERANDO: nivel de la tolva
   E->>P: POST /alerta {"tipo":"COMIDA_BAJA","nivel":18}
   P-->>E: 200 {"ok":true}
@@ -426,6 +446,44 @@ sequenceDiagram
 
 **Reconexión:** ESP32 y cámara reintentan el Wi-Fi cada 5 s (`WiFi.reconnect()`); el ESP32 se reinicia tras 5 min
 sin red y la cámara tras 2 min. El PC no guarda conexiones abiertas (`Connection: close`), así que tolera reinicios.
+
+### 13.5 ¿Wi-Fi o local? (pregunta del profesor)
+
+**Respuesta corta: el dispensador ya funciona de manera local.** Los tres equipos (ESP32, ESP32-CAM y PC) se comunican
+dentro de una **red local**; el Wi-Fi es solo el medio (el "cable sin cable") de esa red. **No se usa Internet:** la foto
+va de la cámara al PC que está en la misma sala, se analiza ahí y la respuesta vuelve al ESP32. Lo único que sale a
+Internet es el aviso **opcional** al celular (ntfy); el panel web funciona sin él.
+
+| Opción | Dónde se analiza la foto | ¿Internet? | Rapidez | Consumo y dependencias | Decisión |
+|---|---|---|---|---|---|
+| En la nube (servicio en Internet) | Servidor remoto | Sí | Cada foto viaja por Internet: suma el retardo de la conexión, que varía | Datos, ancho de banda y depender de un servicio externo; las fotos salen de la casa | Descartada |
+| **Red local (este diseño)** | PC en la misma red | **No** | La foto viaja solo por la red local; el análisis tardó ≈ 20 ms en el PC de desarrollo (`medir_red.py`) | Solo la red local; el PC ya está | **Elegida** |
+| Todo dentro de la ESP32-CAM | La propia cámara | No | Sin envío de la foto | Menor (no haría falta el PC) | No es posible con este modelo: MobileNetV2 ocupa 14 MB y la ESP32-CAM tiene 4 MB de PSRAM y 520 kB de RAM. Habría que entrenar un modelo diminuto propio (TinyML), con menos precisión: mejora futura |
+| Cable entre ESP32 y ESP32-CAM | — | No | — | — | La ESP32-CAM casi no tiene GPIO libres (§20) y la foto igual tiene que llegar a quien la analiza |
+
+**Red local propia para la feria** (para no depender del Wi-Fi del lugar, que en las universidades suele ser
+WPA2-Enterprise o tener portal cautivo, §13.2): un router pequeño **o el punto de acceso del celular con los datos móviles
+apagados** — los equipos solo necesitan que la red exista, no que tenga Internet.
+
+1. Crear la red: 2,4 GHz, WPA2-Personal, nombre y clave en `secrets.h` del ESP32 y de la cámara.
+2. Conectar el PC y ver su subred (`ipconfig` en Windows, `ip a` en Linux), por ejemplo `192.168.43.x`.
+3. Poner esa subred en `ESP32/Dispensador_ESP32/config.h` (`IP_ESP32`, `IP_GATEWAY`, `URL_PC`, `URL_CAMARA`), en
+   `ESP32_CAM/Camara_ESP32CAM/config.h` y al arrancar el servidor (`--camara`, `--esp32`).
+4. Dejar `NTFY_TOPICO` vacío: todo queda dentro de la red local.
+
+Se evaluó también que el propio ESP32 cree la red (modo punto de acceso): elimina el router, pero el ESP32, que es el
+que controla el servo, pasaría a retransmitir todas las fotos entre la cámara y el PC; por eso se prefiere un router o
+el celular.
+
+**Medir los tiempos reales para presentarlos** (en la red de la feria):
+
+```bash
+cd OpenCV
+python medir_red.py --clasificar      # ida y vuelta al ESP32 y a la cámara, 1 foto, análisis y /classify completo
+```
+
+En el PC de desarrollo, con la cámara simulada en el mismo equipo, el análisis (OpenCV + MobileNetV2) tardó ≈ 20 ms y
+`/classify` completo ≈ 30 ms; en la red Wi-Fi real se suma el envío de la foto, que es justamente lo que mide el script.
 
 ## 14. Esquema eléctrico
 
@@ -831,7 +889,7 @@ stateDiagram-v2
   PROCESANDO --> CLASIFICADO: HTTP 200 con clase 0, 1 o 2
   PROCESANDO --> ERROR_CAMARA: HTTP 502
   PROCESANDO --> ERROR_CLASIFICACION: timeout o JSON invalido
-  CLASIFICADO --> CAPTURANDO: clase 0, sigue presente, intentos menor a 3
+  CLASIFICADO --> CAPTURANDO: clase 0, sigue presente, menos de 5 fotos, otra foto tras 2 s
   CLASIFICADO --> ESPERANDO: no permitido o se fue
   CLASIFICADO --> DOSIFICANDO: clase 1 o 2 permitida
   CLASIFICADO --> ERROR_SERVO: riel 6 V ausente
@@ -851,9 +909,9 @@ stateDiagram-v2
 |---|---|---|---|
 | ESPERANDO | Inicio con Wi-Fi, fin de ciclo o error recuperado | Mide distancia cada 50 ms; rearma si la zona está libre ≥ 3 s (> 50 cm) | DETECTADO tras 3 lecturas en [3, 35] cm, zona armada y cooldown global cumplido |
 | DETECTADO | Presencia confirmada | Reinicia contadores de intentos | CAPTURANDO (inmediato) |
-| CAPTURANDO | Detección o reintento | `GET cámara/status` | PROCESANDO si responde; ERROR_CAMARA tras 2 fallos |
+| CAPTURANDO | Detección o foto siguiente | `GET cámara/status` solo antes de la primera foto (en las siguientes, si la cámara falla el PC responde 502) | PROCESANDO si responde; ERROR_CAMARA tras 2 fallos |
 | PROCESANDO | Cámara lista | `GET PC/classify` (10 s) | CLASIFICADO (200), ERROR_CAMARA (502), ERROR_CLASIFICACION (otro) |
-| CLASIFICADO | Respuesta válida | Clase 0: espera 4 s y reintenta si sigue presente (máx. 3). Clase 1/2: verifica habilitación, cooldown de clase, límite 24 h, presencia, riel 6 V | DOSIFICANDO, CAPTURANDO, ESPERANDO o ERROR_SERVO |
+| CLASIFICADO | Respuesta válida | Clase 0: si sigue presente, otra foto a los 2 s (máx. 5 por visita). Clase 1/2: verifica habilitación, cooldown de clase, límite 24 h, presencia, riel 6 V | DOSIFICANDO, CAPTURANDO, ESPERANDO o ERROR_SERVO |
 | DOSIFICANDO | Ración autorizada | N ciclos con vigilancia del riel | FINALIZADO, ERROR_MECANISMO o ERROR_SERVO |
 | FINALIZADO | Dosis completa | Registra la ración (hora, clase, totales) | ESPERANDO con detección **desarmada** |
 | ERROR_WIFI | Wi-Fi perdido | Reintenta cada 5 s; reinicia a los 5 min | ESPERANDO al reconectar |
@@ -875,8 +933,9 @@ Una alerta que el PC no confirma (HTTP 200) se reenvía cada 30 s.
 |---|---|---|---|
 | Mascota lejos / sensor tapado | Distancia > 35 cm o < 3 cm | No se activa nada | Automática |
 | Mascota se va | Distancia antes de reintentar y antes de dispensar | No dispensa, desarma | Al volver tras zona libre |
-| Imagen inválida/oscura/sobreexpuesta/borrosa | OpenCV en el PC | Clase 0 con motivo | Reintento (máx. 3) |
-| Clasificación incierta o ambigua | Umbral y margen | Clase 0 → **no dispensar** | Reintento (máx. 3) |
+| Imagen inválida/oscura/sobreexpuesta/borrosa | OpenCV en el PC | Clase 0 con motivo | Foto nueva a los 2 s si sigue presente (máx. 5) |
+| Clasificación incierta o ambigua | Umbral, margen y fotos de la visita | Clase 0 → **no dispensar** | Foto nueva a los 2 s si sigue presente (máx. 5) |
+| Perro y gato en la misma visita | Las fotos de la visita se promedian | `AMBIGUO` → **no dispensar** | Cuando se vaya uno (las fotos de más de 5 s se olvidan) |
 | Wi-Fi desconectado | `WiFi.status()` cada ciclo | ERROR_WIFI, LED parpadea | Reconexión / reinicio |
 | ESP32-CAM no responde | `/status` falla o PC devuelve 502 | ERROR_CAMARA | Reintento 30 s |
 | PC no responde | Timeout, conexión rechazada o JSON inválido | ERROR_CLASIFICACION | Reintento 30 s |
@@ -1097,7 +1156,7 @@ Proyecto-Dispensador-IOT/
 │   └── README.md
 ├── OpenCV/                            ← visión artificial (PC)
 │   ├── servidor_vision.py  clasificador.py  alertas.py  config.py
-│   ├── descargar_modelo.py  probar_imagenes.py  capturar_dataset.py  simulador_camara.py
+│   ├── descargar_modelo.py  probar_imagenes.py  capturar_dataset.py  simulador_camara.py  medir_red.py
 │   ├── model/                         (modelo descargado, no se versiona)
 │   ├── tests/                         (test_vision.py, test_modelo_real.py, descargar_imagenes_prueba.py)
 │   ├── requirements.txt
@@ -1133,12 +1192,13 @@ ALGORITMO Dispensador (ESP32)
                    si zona libre ≥ 3 s: armar
                    si 3 ≤ d ≤ 35 cm (3 veces) y armado y sin cooldown: DETECTADO
       DETECTADO:   intentos ← 0; CAPTURANDO
-      CAPTURANDO:  si cámara/status OK: PROCESANDO; si falla 2 veces: ERROR_CAMARA
+      CAPTURANDO:  en la 1.ª foto: si cámara/status OK: PROCESANDO; si falla 2 veces: ERROR_CAMARA
+                   en las siguientes: PROCESANDO directo (si la cámara falla, el PC responde 502)
       PROCESANDO:  r ← GET PC/classify (10 s)
                    200 → CLASIFICADO; 502 → ERROR_CAMARA; otro → ERROR_CLASIFICACION
       CLASIFICADO: si clase ∉ {1,2}:
-                       si intentos+1 ≥ 3 o la mascota se fue: desarmar, ESPERANDO
-                       si no, tras 4 s: intentos++, CAPTURANDO
+                       si intentos+1 ≥ 5 o la mascota se fue: desarmar, ESPERANDO
+                       si no, tras 2 s: intentos++, CAPTURANDO        (una foto cada ~2 s)
                    si clase ∈ {1,2}:
                        si deshabilitada o cooldown de clase o límite 24 h o tolva agotada: desarmar, ESPERANDO
                        si la mascota se fue: desarmar, ESPERANDO
@@ -1151,10 +1211,11 @@ ALGORITMO Dispensador (ESP32)
       errores:     reintentos/recuperación según §24
 
 ALGORITMO /classify (PC)
-  repetir 2 veces: jpeg ← GET cámara/capture (3 s)   (si falla: 502 CAMARA_NO_RESPONDE)
-  para cada imagen: calidad (decodifica, tamaño, brillo, nitidez) → si válida: CLAHE → blob → cv2.dnn → softmax
-                    P(perro) = Σ p[151..268]; P(gato) = Σ p[281..285]
-  promediar las válidas; decidir (mínimo animal 0,5; confianza 0,6; margen 0,3) → 1, 2 o 0
+  jpeg ← GET cámara/capture (3 s)   (si falla: 502 CAMARA_NO_RESPONDE)
+  calidad (decodifica, tamaño, brillo, nitidez) → si válida: CLAHE → blob → cv2.dnn → softmax
+  P(perro) = Σ p[151..268]; P(gato) = Σ p[281..285]
+  si se ve un animal: promediar con las fotos de la visita (últimos 5 s, máx. 3)
+  decidir (mínimo animal 0,5; confianza 0,6; margen 0,3) → 1, 2 o 0; con 1 o 2 la visita termina
   responder JSON; guardar las fotos con la etiqueta (registro para calibrar)
 
 ALGORITMO /alerta (PC)
@@ -1230,16 +1291,18 @@ Registrar cada prueba (fecha, valores, foto). **Prueba 0** (añadida): alimentac
 | **6. ESP32 ↔ PC** | Integración | Comando `CLASIFICAR` con perro, gato, nada; apagar la cámara; apagar el PC | Clase correcta; ERROR_CAMARA; ERROR_CLASIFICACION | Las 5 situaciones con el estado correcto y recuperación automática | Firewall del PC, IP del PC errónea | Abrir puerto 8000; corregir `URL_PC` |
 | **7. Dosificación** | Repetibilidad | Calibrar posiciones; `CICLO 1` × 10 con tolva llena/media/baja; pesar; forzar un atasco con una croqueta grande | g/ciclo estable; atasco detectado | CV ≤ 10 %; ninguna caída de alimento fuera del conducto; atasco → ERROR_MECANISMO y servo liberado | Bolsillo no se llena, puenteo en tolva, sin detección de atasco | Aumentar T_LLENADO; agitación; ajustar VSERVO_CAIDA |
 | **8. Sistema completo** | Funcionamiento real | 20 aproximaciones (perro/peluche, gato/foto, persona, nadie); 1 h continua con batería | Dispensa solo a perro/gato, respeta cooldown | 0 dispensaciones indebidas; ≥ 90 % correctas; sin reinicios en 1 h | Repeticiones, reinicios | Ajustar cooldown/rearmado; revisar alimentación |
+| **R. Red local** (añadida) | Rapidez sin Internet | Red propia (router o celular sin datos); `python medir_red.py --clasificar`; 10 aproximaciones midiendo el tiempo hasta la decisión | Decisión en menos de 1–2 s después de que el sensor confirma | Mediana de `/classify` < 2 s y ninguna respuesta perdida | Señal débil, IP equivocada | Acercar el router, red 2,4 GHz, revisar las IP |
 | **9. Sensor de nivel** (añadida) | Alertas de comida | Calibrar VACIO/LLENO; `NIVEL` con tolva llena, media y casi vacía; vaciar hasta < 20 % y < 3 % | ≈ 100 % lleno; alerta en el panel web (y celular) | Alerta en ≤ 3 min al cruzar el 20 %; con ≤ 3 % no dispensa; al recargar llega COMIDA_REPUESTA | "Sin lectura", saltos | Revisar J5/cable; nivelar el alimento; recalibrar |
 | **E. Panel** (añadida) | Aporte real | Estación al sol; medir V<sub>oc</sub>, I<sub>sc</sub>; `v_panel` en `/status`; corriente de carga | ≈ 0,3 W pico al sol, ≈ 0 en interior | Medición registrada y coherente con §21 | Elevador oscila; GX12 invertido | Documentarlo; mejora con MPPT; pin 1 = + |
 
 **Pruebas ya ejecutadas sin hardware (reproducibles; también corren solas en GitHub Actions en cada `push`):**
 
 ```bash
-cd OpenCV && python -m unittest discover -s tests -v      # 22 pruebas (la del modelo real se activa con imágenes)
+cd OpenCV && python -m unittest discover -s tests -v      # 29 pruebas (la del modelo real se activa con imágenes)
+cd OpenCV && python medir_red.py --clasificar             # tiempos de la red local (con el hardware encendido)
 python tests/descargar_imagenes_prueba.py imagenes_prueba && \
   DISPENSADOR_IMAGENES_PRUEBA=imagenes_prueba python -m unittest tests.test_modelo_real -v   # 25 imágenes, 0 peligrosas
-cd ESP32/test_host && make                                # 24 escenarios de la máquina de estados
+cd ESP32/test_host && make                                # 26 escenarios de la máquina de estados
 cd ESP32/test_host && make sintaxis                       # compilación rápida contra stubs (API 2.x y 3.x)
 arduino-cli compile --fqbn esp32:esp32:esp32doit-devkit-v1 ESP32/Dispensador_ESP32           # compilación real
 arduino-cli compile --fqbn esp32:esp32:esp32cam:PartitionScheme=huge_app ESP32_CAM/Camara_ESP32CAM
@@ -1343,7 +1406,12 @@ Leyenda: ✅ verificado en este repositorio · 🔧 verificado en diseño, **pen
 - ✅ No existen conexiones potencialmente peligrosas en el esquema (fusible, BMS, interruptor, divisores en origen).
 
 **SOFTWARE**
-- ✅ ESP32 controla el sistema y toma la decisión final (24 escenarios probados en PC, 5 de ellos del sensor de nivel).
+- ✅ ESP32 controla el sistema y toma la decisión final (26 escenarios probados en PC, 5 del sensor de nivel y 2 de
+  las fotos cada 2 s).
+- ✅ Fotos en vez de video: la cámara en modo foto no captura de forma continua; una foto cada ~2 s solo con la
+  mascota delante (máx. 5) y las fotos de la visita se combinan (probado con visitas simuladas en el PC).
+- ✅ Funcionamiento local: ningún paso de la identificación usa Internet (§13.5). 🔧 Medir los tiempos en la red real
+  con `medir_red.py`.
 - ✅ Alerta de comida por acabarse: ESP32 → `POST /alerta` → panel web y celular (probado de punta a punta con un
   servidor ntfy simulado); reenvío si el PC no la recibe; un sensor roto no bloquea la alimentación.
 - ✅ ESP32-CAM captura imágenes (`/capture`). ✅ Ambos firmwares compilan con la cadena oficial de Espressif
@@ -1394,6 +1462,8 @@ y densidad aparente del alimento (para pasar el % de volumen a gramos).
 * **Cómo funciona:** "el sensor ve que alguien se acerca, la cámara le saca una foto, la computadora dice si es perro o
   gato, y el ESP32 decide si le da comida y cuánta".
 * **IoT:** tres dispositivos (ESP32, ESP32-CAM, PC) que se comunican por Wi-Fi con HTTP y se pueden monitorear (`/status`).
+  Todo es **local**: la foto nunca sale de la sala ni pasa por Internet (pregunta del profesor).
+* **Cámara:** no graba video; cuando llega la mascota saca una foto cada 2 s hasta reconocerla (idea del profesor).
 * **Visión artificial:** OpenCV prepara y evalúa la imagen y ejecuta una red neuronal (MobileNetV2) que reconoce perros y
   gatos; si duda, no dispensa.
 * **Automatización:** máquina de estados con reglas de seguridad, dosificación por ciclos calibrados y manejo de errores.
