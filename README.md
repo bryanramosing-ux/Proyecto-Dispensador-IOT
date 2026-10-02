@@ -311,7 +311,7 @@ sin eco** (aviso, no bloquea) y **PC que no recibe la alerta** (reenvío cada 30
 | `Dispensador_ESP32.ino` | Une los módulos (`HardwareReal`), lazo de 50 ms, comandos serie, LED | GPIO2, GPIO0 |
 
 * **Patrón:** la máquina de estados depende de una interfaz abstracta `Hardware`; en el ESP32 la implementa
-  `HardwareReal` y en las pruebas de PC un `FakeHW`. Así se probaron 24 escenarios sin placa.
+  `HardwareReal` y en las pruebas de PC un `FakeHW`. Así se probaron 26 escenarios sin placa.
 * **Sin bloqueos largos:** el lazo corre cada 50 ms; las únicas esperas largas son la petición HTTP (máx. 10 s,
   con timeout) y la dosis (el servo debe completar el ciclo).
 
