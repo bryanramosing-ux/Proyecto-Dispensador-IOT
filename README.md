@@ -5,8 +5,9 @@
 Proyecto universitario para feria de informática. Este repositorio contiene **todo** lo necesario para
 construirlo y probarlo: firmware del ESP32 y de la ESP32-CAM, servidor de visión en Python + OpenCV,
 22 piezas STL paramétricas listas para la **Elegoo Neptune 4 Plus**, [manual de armado](Documentation/manual_armado/Manual_de_Armado.md)
-([PDF](Documentation/manual_armado/Manual_de_Armado.pdf)), esquema eléctrico completo, cálculo energético, procedimientos
-de calibración y plan de pruebas.
+([PDF](Documentation/manual_armado/Manual_de_Armado.pdf)), un **[video de funcionamiento y armado](Documentation/video)**
+(≈ 7 min, narrado y subtitulado), esquema eléctrico completo, cálculo energético, procedimientos de calibración y plan de
+pruebas.
 
 > **Cómo se elaboró (técnica ROL – TAREA – CONTEXTO).**
 > **ROL:** equipo de ingeniería electrónica, sistemas embebidos/IoT, visión artificial, mecánica/diseño 3D,
@@ -1169,6 +1170,7 @@ Proyecto-Dispensador-IOT/
 │   └── README.md
 └── Documentation/
     ├── manual_armado/                 (Manual_de_Armado.md + .pdf + img/ con cada paso)
+    ├── video/                         (video de funcionamiento y armado, guion, subtítulos y sus fuentes)
     ├── components/lista_materiales.csv (lista de compras)
     ├── wiring/                        (esquema completo + generador, tabla_conexiones.md, placa_control.* + generador)
     ├── power/calculo_energia.py

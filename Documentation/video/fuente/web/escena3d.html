@@ -1,0 +1,185 @@
+<!doctype html><html><head><meta charset="utf-8">
+<style>
+html,body{margin:0;background:#fff;overflow:hidden;font-family:"Noto Sans","DejaVu Sans",Arial,sans-serif}
+#rotulo{position:absolute;left:36px;top:30px;background:rgba(255,255,255,.88);border-left:6px solid #e8a33d;
+  padding:12px 20px 12px 16px;border-radius:6px;box-shadow:0 2px 10px rgba(0,0,0,.08);max-width:760px}
+#rotulo h1{margin:0;font-size:30px;color:#1f2d3a}#rotulo p{margin:6px 0 0;font-size:19px;color:#4a5866}
+#marca{position:absolute;right:30px;top:26px;font-size:15px;color:#7a8794}
+#grande{position:absolute;left:60px;top:60px;max-width:620px}
+#grande h1{margin:0;font-size:46px;line-height:1.15;color:#1f2d3a}
+#grande p{margin:16px 0 0;font-size:24px;color:#b9770e;font-weight:600}
+#etiqueta{position:absolute;padding:6px 12px;border-radius:14px;background:#1f4e79;color:#fff;font-size:18px;
+  font-weight:600;transform:translate(-50%,-140%);white-space:nowrap;display:none}
+</style></head><body>
+<div id="rotulo"><h1></h1><p></p></div><div id="grande"><h1></h1><p></p></div>
+<div id="marca">Dispensador IoT · visión artificial · energía solar</div><div id="etiqueta"></div>
+<script type="importmap">{"imports":{"three":"./node_modules/three/build/three.module.js","three/addons/":"./node_modules/three/examples/jsm/"}}</script>
+<script type="module">
+import * as THREE from 'three';
+import {STLLoader} from 'three/addons/loaders/STLLoader.js';
+
+const COL = {'01':'#57b36a','16':'#16a085','02':'#7f9bb8','14':'#6f8aa6','13a':'#9fb3c8','13b':'#8fa3b8','13c':'#b8c4d0',
+  '03':'#2f6fd6','04':'#2f6fd6','05':'#5b8fe8','06':'#7b5cd6','07':'#e8a33d','08a':'#d9a85a','08b':'#c97f2a',
+  '08c':'#eab060','08d':'#e0a050','09':'#e0902a','10':'#d9822b','11':'#d9534f','MG':'#333333','HC':'#2f6fd6',
+  'E12a':'#2c3e50','E12b':'#46637f','Epanel':'#1b2a4a'};
+const ARCH = {'01':'01_Base_Torre','16':'16_Soporte_Estructural_Cajon_Energia','02':'02_Cuerpo_Principal',
+  '03':'03_Modulo_HC_SR04','04':'04_Modulo_ESP32_CAM','05':'05_Modulo_ESP32','06':'06_Soporte_MG995','07':'07_Tolva',
+  '08a':'08a_Carcasa_Dosificador','08b':'08b_Disco_Dosificador','08c':'08c_Placa_Superior_Dosificador',
+  '08d':'08d_Placa_Base_Dosificador','09':'09_Conducto_Alimento','10':'10_Salida_Alimento','11':'11_Comedero',
+  '13a':'13a_Tapa_Superior_Tolva','13b':'13b_Capsula_Sensor_Nivel','13c':'13c_Tapa_Capsula_Sensor',
+  '14':'14_Tapa_Lateral_Servicio','MG':'MG995','HC':'HC_nivel','E12a':'E_12a','E12b':'E_12b0','Epanel':'E_panel0'};
+const ORDEN = ['01','16','02','05','03','04','09','10','06','MG','08a','08d','08b','08c','07','13b','HC','13a','13c','14','11'];
+const NUEVAS = {1:['01','16'],2:['02','05','03','04'],3:['09','10'],4:['06','MG'],5:['08a','08d'],6:['08b'],7:['08c'],
+  8:['07'],9:['13b','HC','13a','13c'],10:['14','11']};
+const DESP = {1:{'16':[0,110,0]},2:{'02':[0,0,70],'05':[0,0,70],'03':[0,-70,70],'04':[0,-70,70]},
+  3:{'09':[0,0,150],'10':[0,-90,0]},4:{'06':[0,0,80],'MG':[0,0,80]},5:{'08a':[0,0,80],'08d':[0,0,130]},
+  6:{'08b':[0,0,90]},7:{'08c':[0,0,80]},8:{'07':[0,0,140]},9:{'13a':[0,0,100],'13b':[0,0,170],'HC':[0,0,170],'13c':[0,0,220]},
+  10:{'14':[0,100,0],'11':[0,-110,0]}};
+const CAMS = {1:[[560,820,480],[0,40,25]],2:[[-700,-1350,900],[0,-30,250]],3:[[-700,-1350,900],[0,-30,250]],
+  4:[[650,1100,1100],[0,0,240]],5:[[-600,-1100,1250],[0,0,270]],6:[[-500,-900,1200],[0,0,280]],
+  7:[[-500,-900,1200],[0,0,290]],8:[[-800,-1400,1100],[0,0,340]],9:[[-560,-900,1000],[0,0,590]],
+  10:[[900,-1300,800],[0,-20,200]]};
+const GRIS = '#e1e5ea';
+// dosificador (de Mechanical/generar_stl.py)
+const C = [0,-2], RB = 40, A_ENT = 10, A_SAL = -90, A_CER = -40, ZB = 283.5;
+const Z_PIVOTE = 60;
+
+const W = 1280, H = 720;
+const r = new THREE.WebGLRenderer({antialias:true, preserveDrawingBuffer:true});
+r.setSize(W, H); r.setClearColor(0xffffff); r.localClippingEnabled = true;
+document.body.prepend(r.domElement);
+const ld = new STLLoader(), cache = {};
+async function geo(k){ if(!cache[k]){ cache[k] = await new Promise((ok,mal)=>ld.load('mallas/'+ARCH[k]+'.stl', ok, undefined, mal)); cache[k].computeVertexNormals(); } return cache[k]; }
+
+let S = null;
+const suave = x => x<=0 ? 0 : x>=1 ? 1 : x*x*(3-2*x);
+const tramo = (t, a, b) => suave((t-a)/(b-a));
+const lerp = (a,b,u) => a + (b-a)*u;
+const lerp3 = (a,b,u) => a.map((v,i)=>lerp(v,b[i],u));
+const pol = (ang) => [C[0] + RB*Math.cos(ang*Math.PI/180), C[1] + RB*Math.sin(ang*Math.PI/180)];
+
+function material(color, op, corte){
+  return new THREE.MeshStandardMaterial({color, metalness:0.05, roughness:0.72, side:THREE.DoubleSide,
+    transparent: op<1, opacity: op, depthWrite: op>=1, clippingPlanes: corte ? [S.plano] : []});
+}
+async function malla(k, color, {op=1, corte=false, padre=null}={}){
+  const g = await geo(k);
+  const m = new THREE.Mesh(g, material(color, op, corte)); m.renderOrder = op<1 ? 2 : 1;
+  (padre || S.escena).add(m);
+  if (op >= 0.5) {
+    const e = new THREE.LineSegments(new THREE.EdgesGeometry(g, 35),
+      new THREE.LineBasicMaterial({color:0x222222, transparent:true, opacity:0.3*op, clippingPlanes: corte ? [S.plano] : []}));
+    m.add(e);
+  }
+  return m;
+}
+
+window.preparar = async (e) => {
+  S = {e, escena: new THREE.Scene(), mov: [], plano: new THREE.Plane(new THREE.Vector3(-1,0,0), 0.5)};
+  const sc = S.escena;
+  sc.add(new THREE.HemisphereLight(0xffffff, 0x667788, 1.6));
+  const d1 = new THREE.DirectionalLight(0xffffff, 1.8); d1.position.set(-300,-500,800); sc.add(d1);
+  const d2 = new THREE.DirectionalLight(0xffffff, 0.7); d2.position.set(400,300,200); sc.add(d2);
+  S.cam = new THREE.PerspectiveCamera(22, W/H, 10, 8000); S.cam.up.set(0,0,1);
+  const grande = e.anim === 'giro';
+  document.getElementById('rotulo').style.display = grande ? 'none' : 'block';
+  document.getElementById('grande').style.display = grande ? 'block' : 'none';
+  const caja = document.getElementById(grande ? 'grande' : 'rotulo');
+  caja.querySelector('h1').textContent = e.titulo || ''; caja.querySelector('p').textContent = e.sub || '';
+  document.getElementById('etiqueta').style.display = 'none';
+
+  if (e.anim === 'giro') {
+    for (const k of ORDEN) if (k !== 'MG' && k !== 'HC') await malla(k, COL[k]);
+  } else if (e.anim === 'paso') {
+    const nuevas = NUEVAS[e.paso];
+    for (const k of ORDEN) {
+      const antes = ORDEN.indexOf(k) < ORDEN.indexOf(nuevas[0]);
+      if (antes && !nuevas.includes(k)) await malla(k, GRIS);
+    }
+    for (const k of nuevas) S.mov.push({m: await malla(k, COL[k]), d: DESP[e.paso][k] || [0,0,0]});
+  } else if (e.anim === 'dosificador') {
+    for (const k of ['01','16','02','05','09','10','06','MG','08a','08d','07','11','03','04'])
+      await malla(k, COL[k], {corte:true});
+    S.pivote = new THREE.Group(); S.pivote.position.set(C[0], C[1], 0); sc.add(S.pivote);
+    const disco = await malla('08b', COL['08b'], {padre:S.pivote}); disco.position.set(-C[0], -C[1], 0);
+    await malla('08c', COL['08c'], {op:0.28});
+    const geoC = new THREE.SphereGeometry(5.5, 24, 16);
+    S.croquetas = [0,1,2].map(() => { const m = new THREE.Mesh(geoC, new THREE.MeshStandardMaterial({color:'#8b4a1e', roughness:0.9})); m.visible = false; sc.add(m); return m; });
+  } else if (e.anim === 'estacion') {
+    await malla('E12a', COL['E12a']);
+    S.bandeja = new THREE.Group(); S.bandeja.position.set(0, 0, Z_PIVOTE); sc.add(S.bandeja);
+    for (const k of ['E12b','Epanel']) { const m = await malla(k, COL[k], {padre:S.bandeja}); m.position.set(0,0,-Z_PIVOTE); }
+  }
+  return true;
+};
+
+// dx, dy: desplazamiento de la imagen en píxeles (a la derecha del rótulo y por encima de los subtítulos)
+function camara(pos, obj, daz, escala=1, dx=0, dy=-24){
+  const v = new THREE.Vector3(...pos).sub(new THREE.Vector3(...obj)).multiplyScalar(escala);
+  v.applyAxisAngle(new THREE.Vector3(0,0,1), daz*Math.PI/180);
+  const o = new THREE.Vector3(...obj);
+  S.cam.position.copy(o.clone().add(v)); S.cam.lookAt(o);
+  S.cam.setViewOffset(W, H, -dx, -dy, W, H);
+}
+function orbita(obj, az, el, dist){
+  const a = az*Math.PI/180, b = el*Math.PI/180;
+  return [obj[0] + dist*Math.cos(b)*Math.cos(a), obj[1] + dist*Math.cos(b)*Math.sin(a), obj[2] + dist*Math.sin(b)];
+}
+
+function posCroqueta(u){                     // u: tiempo dentro del ciclo de 10 s
+  if (u < 1.5) return [...pol(A_ENT), 335];
+  if (u < 2.4) { const k = (u-1.5)/0.9; return [...pol(A_ENT), lerp(335, ZB, k*k)]; }
+  if (u < 3.0) return [...pol(angDisco(u)), ZB];
+  if (u < 5.2) return [...pol(angDisco(u)), ZB];
+  if (u < 5.6) { const k = (u-5.2)/0.4; return [0, -42, lerp(ZB, 262, k*k)]; }
+  if (u < 6.4) { const k = (u-5.6)/0.8; return [0, -42, lerp(262, 157.5, k)]; }
+  if (u < 7.3) { const k = (u-6.4)/0.9; return [0, lerp(-42, -115, k), lerp(157.5, 84.5, k)]; }
+  if (u < 7.9) { const k = (u-7.3)/0.6; return [0, lerp(-115, -136, k), 84.5 - (84.5-10)*k*k]; }
+  return [0, -136, 10];
+}
+function angDisco(u){
+  if (u < 1.5) return lerp(A_CER, A_ENT, tramo(u, 0.2, 1.5));
+  if (u < 3.0) return A_ENT + (u > 2.4 ? 3*Math.sin((u-2.4)*Math.PI*2/0.3) : 0);
+  if (u < 5.2) return lerp(A_ENT, A_SAL, tramo(u, 3.0, 5.2));
+  if (u < 7.0) return A_SAL;
+  return lerp(A_SAL, A_CER, tramo(u, 7.0, 8.5));
+}
+
+window.cuadro = (t) => {
+  const e = S.e, T = e.duracion;
+  const et = document.getElementById('etiqueta'); et.style.display = 'none';
+  if (e.anim === 'giro') {
+    camara(orbita([0,-40,255], -120 + 60*t/T, 18, 1900), [0,-40,255], 0, 1, 250, -14);
+  } else if (e.anim === 'paso') {
+    const u = tramo(t, 0.4, 2.4);
+    for (const {m, d} of S.mov) m.position.set(d[0]*(1-u), d[1]*(1-u), d[2]*(1-u));
+    const [pos, obj] = CAMS[e.paso];
+    const o = e.paso === 9 ? [0, 0, lerp(590, 470, u)] : obj;      // la cámara baja con la tapa
+    camara(pos, o, -12 + 24*t/T, e.paso === 1 ? 0.95 : 0.82, 110, -22);
+  } else if (e.anim === 'dosificador') {
+    const u = t % 10, ciclo = Math.floor(t / 10);
+    S.pivote.rotation.z = (angDisco(u) - A_CER) * Math.PI/180;
+    S.croquetas.forEach((c, i) => {
+      if (i < ciclo) { c.visible = true; c.position.set(-6 + 12*i, -136 + 4*i, 10); }
+      else if (i === ciclo) { c.visible = true; c.position.set(...posCroqueta(u)); }
+      else c.visible = false;
+    });
+    // la cámara sigue a la croqueta: cerca del disco y luego hacia el comedero
+    const k = tramo(u, 5.0, 7.6) * (1 - tramo(u, 8.6, 9.9));
+    const obj = lerp3([12,-14,275], [0,-85,135], k);
+    camara(orbita(obj, -38 + 6*Math.sin(t/6), lerp(32, 16, k), lerp(680, 1080, k)), obj, 0, 1, 120, -18);
+    const txt = u < 1.5 ? 'Bolsillo hacia la entrada' : u < 3.0 ? 'Se llena' : u < 5.2 ? 'Gira 100° (tapado arriba y abajo)'
+      : u < 7.9 ? 'Cae por el conducto cerrado' : 'Vuelve a CERRADO';
+    const p = new THREE.Vector3(...(u < 5.2 ? [...pol(angDisco(u)), ZB + 20] : posCroqueta(Math.min(u, 7.9)))).project(S.cam);
+    et.textContent = txt; et.style.display = 'block';
+    et.style.left = ((p.x+1)/2*W) + 'px'; et.style.top = ((1-p.y)/2*H) + 'px';
+  } else if (e.anim === 'estacion') {
+    const ang = 48*tramo(t, 1.0, 3.5) - 20*tramo(t, T*0.6, T*0.6+2.0);
+    S.bandeja.rotation.x = ang * Math.PI/180;
+    camara(orbita([0,0,48], -70 + 50*t/T, 24, 540), [0,0,48], 0, 1, 90, -22);
+  }
+  r.render(S.escena, S.cam);
+  return true;
+};
+window.listo = true;
+</script></body></html>

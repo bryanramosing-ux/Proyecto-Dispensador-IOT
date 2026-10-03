@@ -1,0 +1,6 @@
+# se generan al armar el video
+web/mallas/
+web/node_modules
+web/laminas.json
+node_modules
+salida/
