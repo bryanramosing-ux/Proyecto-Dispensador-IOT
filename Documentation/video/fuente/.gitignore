@@ -4,3 +4,7 @@ web/node_modules
 web/laminas.json
 node_modules
 salida/
+# copias de imágenes del repositorio (laminas.py las vuelve a copiar); se versionan solo las propias
+web/img/*
+!web/img/panel_web.png
+!web/img/esquema_energia.png
