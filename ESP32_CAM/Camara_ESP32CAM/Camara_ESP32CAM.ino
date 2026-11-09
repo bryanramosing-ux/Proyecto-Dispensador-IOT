@@ -1,17 +1,3 @@
-// =============================================================================
-//  DISPENSADOR INTELIGENTE - Firmware de la ESP32-CAM (AI-Thinker, OV2640)
-// =============================================================================
-//  Responsabilidad ÚNICA: capturar una foto cuando se la piden y entregarla.
-//  NO clasifica (eso lo hace el PC con OpenCV) y NO controla el servo.
-//
-//  Endpoints HTTP (puerto 80):
-//    GET /capture -> image/jpeg  (foto nueva)         | 503 si la cámara falla
-//    GET /status  -> application/json (diagnóstico)
-//
-//  Programación: adaptador USB-TTL de 3,3 V (TX->U0R, RX->U0T, GND, 5V) o placa
-//  ESP32-CAM-MB. Unir GPIO0 a GND durante el arranque para entrar en modo carga.
-//  Placa en Arduino IDE: "AI Thinker ESP32-CAM".
-// =============================================================================
 #include <Arduino.h>
 #include <WebServer.h>
 #include <WiFi.h>
@@ -22,7 +8,7 @@
 #if __has_include("secrets.h")
 #include "secrets.h"
 #else
-#warning "Falta secrets.h: se usa secrets_ejemplo.h (copie y complete sus datos de Wi-Fi)"
+#pragma message "Falta secrets.h: se usa secrets_ejemplo.h (copie y complete sus datos de Wi-Fi)"
 #include "secrets_ejemplo.h"
 #endif
 
@@ -74,9 +60,6 @@ bool iniciarCamara() {
   c.pixel_format = PIXFORMAT_JPEG;
   c.frame_size = TAMANO_FOTO;
   c.jpeg_quality = CALIDAD_JPEG;
-  // MODO FOTO (idea del profesor: no grabar, solo sacar fotos): con un solo búfer el
-  // controlador NO captura cuadros de forma continua; toma uno cuando se lo pide /capture.
-  // El sensor sigue encendido, así la exposición automática ya está ajustada.
   if (psramFound()) {
     c.fb_count = 1;
     c.fb_location = CAMERA_FB_IN_PSRAM;
@@ -99,12 +82,33 @@ bool iniciarCamara() {
   return true;
 }
 
-// Devuelve un cuadro "fresco": el que quedó en el búfer puede ser de la foto anterior
-// (segundos o minutos atrás), así que se descarta y se toma uno nuevo.
 camera_fb_t* capturarFresca() {
   camera_fb_t* fb = esp_camera_fb_get();
   if (fb) esp_camera_fb_return(fb);
   return esp_camera_fb_get();
+}
+
+void enviarFrameStream() {
+  if (!camaraOk) {
+    return;
+  }
+
+  camera_fb_t* fb = capturarFresca();
+  if (!fb || fb->format != PIXFORMAT_JPEG || fb->len == 0) {
+    if (fb) esp_camera_fb_return(fb);
+    return;
+  }
+
+  char cabecera[128];
+  snprintf(cabecera, sizeof(cabecera),
+           "--esp32cam\r\n"
+           "Content-Type: image/jpeg\r\n"
+           "Content-Length: %u\r\n\r\n",
+           fb->len);
+  servidor.client().write((const uint8_t*)cabecera, strlen(cabecera));
+  servidor.client().write(fb->buf, fb->len);
+  servidor.client().write((const uint8_t*)"\r\n", 2);
+  esp_camera_fb_return(fb);
 }
 
 void manejarCaptura() {
@@ -135,11 +139,29 @@ void manejarCaptura() {
   fotosOk++;
 }
 
+void manejarStream() {
+  if (!camaraOk) {
+    servidor.send(503, "application/json", "{\"error\":\"camara no inicializada\"}");
+    return;
+  }
+
+  servidor.sendHeader("Cache-Control", "no-store");
+  servidor.sendHeader("Connection", "close");
+  servidor.send(200, "multipart/x-mixed-replace; boundary=esp32cam", "");
+  servidor.client().println();
+  servidor.client().print("--esp32cam\r\n");
+
+  for (uint8_t i = 0; i < 20 && servidor.client().connected(); ++i) {
+    enviarFrameStream();
+    delay(100);
+  }
+}
+
 void manejarEstado() {
   char buf[256];
   snprintf(buf, sizeof(buf),
            "{\"camara\":%s,\"psram\":%s,\"fotos_ok\":%lu,\"fotos_fallidas\":%lu,"
-           "\"rssi\":%d,\"heap\":%u,\"uptime_s\":%lu}",
+           "\"rssi\":%d,\"heap\":%u,\"uptime_s\":%lu,\"stream\":true}",
            camaraOk ? "true" : "false", psramFound() ? "true" : "false",
            (unsigned long)fotosOk, (unsigned long)fotosFallidas, WiFi.RSSI(),
            (unsigned)ESP.getFreeHeap(), (unsigned long)(millis() / 1000));
@@ -149,7 +171,7 @@ void manejarEstado() {
 void conectarWifi() {
   WiFi.persistent(false);
   WiFi.mode(WIFI_STA);
-  WiFi.setSleep(false);   // menor latencia al responder /capture
+  WiFi.setSleep(false);
   WiFi.setAutoReconnect(true);
   IPAddress ip, gw, mascara;
   if (strlen(IP_CAMARA) > 0 && ip.fromString(IP_CAMARA) && gw.fromString(IP_GATEWAY) &&
@@ -173,11 +195,12 @@ void setup() {
   pinMode(FLASH_GPIO_NUM, OUTPUT);
   digitalWrite(FLASH_GPIO_NUM, LOW);
   pinMode(LED_ROJO_GPIO_NUM, OUTPUT);
-  digitalWrite(LED_ROJO_GPIO_NUM, HIGH);  // apagado
+  digitalWrite(LED_ROJO_GPIO_NUM, HIGH);
 
   camaraOk = iniciarCamara();
   conectarWifi();
   servidor.on("/capture", HTTP_GET, manejarCaptura);
+  servidor.on("/stream", HTTP_GET, manejarStream);
   servidor.on("/status", HTTP_GET, manejarEstado);
   servidor.onNotFound([]() { servidor.send(404, "application/json", "{\"error\":\"ruta desconocida\"}"); });
   servidor.begin();
@@ -186,7 +209,6 @@ void setup() {
 void loop() {
   servidor.handleClient();
 
-  // LED rojo encendido = sin Wi-Fi o cámara con fallo
   bool problema = !camaraOk || WiFi.status() != WL_CONNECTED;
   digitalWrite(LED_ROJO_GPIO_NUM, problema ? LOW : HIGH);
 
@@ -201,10 +223,11 @@ void loop() {
     tSinWifi = 0;
   }
 
-  if (!camaraOk && millis() - tReintentoCam > 10000) {  // reintento de inicialización
+  if (!camaraOk && millis() - tReintentoCam > 10000) {
     tReintentoCam = millis();
     esp_camera_deinit();
     camaraOk = iniciarCamara();
   }
   delay(2);
 }
+

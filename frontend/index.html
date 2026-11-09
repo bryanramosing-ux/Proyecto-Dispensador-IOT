@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Dispensador IoT</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <div class="shell">
+      <aside class="sidebar">
+        <h1>Dispensador IoT</h1>
+        <nav>
+          <button class="nav active">Dashboard</button>
+          <button class="nav">Cámara</button>
+          <button class="nav">Galería</button>
+          <button class="nav">Historial</button>
+        </nav>
+      </aside>
+
+      <main class="content">
+        <section class="cards">
+          <article class="card">
+            <h2>Estado general</h2>
+            <p id="system-status">Cargando...</p>
+          </article>
+          <article class="card">
+            <h2>Wi‑Fi / ESP32</h2>
+            <p id="esp32-status">Cargando...</p>
+          </article>
+          <article class="card">
+            <h2>Cámara</h2>
+            <p id="camera-status">Cargando...</p>
+          </article>
+          <article class="card">
+            <h2>Nivel de alimento</h2>
+            <p id="food-level">Cargando...</p>
+          </article>
+        </section>
+
+        <section class="panel">
+          <div class="camera-block">
+            <h2>Vista en vivo</h2>
+            <img id="camera-stream" src="" alt="Cámara no disponible" />
+            <div class="actions">
+              <button id="capture-btn">Capturar</button>
+              <button id="refresh-btn">Actualizar</button>
+            </div>
+          </div>
+          <div class="controls">
+            <h2>Dispensador</h2>
+            <button id="dispense-btn">Dispensar manual</button>
+            <p id="dispense-message">Acción deshabilitada por seguridad hasta calibración física.</p>
+          </div>
+        </section>
+
+        <section class="gallery">
+          <h2>Galería de capturas</h2>
+          <div id="gallery-grid"></div>
+        </section>
+      </main>
+    </div>
+
+    <script src="/app.js"></script>
+  </body>
+</html>

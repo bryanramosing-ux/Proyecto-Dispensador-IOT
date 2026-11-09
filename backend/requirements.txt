@@ -1,0 +1,12 @@
+# Framework ligero para la API local del dispensador.
+#
+# Instalar:
+#   python -m venv .venv
+#   source .venv/bin/activate
+#   pip install -r backend/requirements.txt
+#
+# Ejecutar:
+#   python backend/dashboard_server.py
+
+Flask>=3.0.0
+requests>=2.32.0
