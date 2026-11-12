@@ -1,66 +1,123 @@
 <!doctype html>
 <html lang="es">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Dispensador IoT</title>
-    <link rel="stylesheet" href="/styles.css" />
-  </head>
-  <body>
-    <div class="shell">
-      <aside class="sidebar">
-        <h1>Dispensador IoT</h1>
-        <nav>
-          <button class="nav active">Dashboard</button>
-          <button class="nav">Cámara</button>
-          <button class="nav">Galería</button>
-          <button class="nav">Historial</button>
-        </nav>
-      </aside>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dispensador IoT</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <div class="shell">
+    <aside class="sidebar">
+      <div class="brand"><span class="logo">◈</span><span>Dispensador IoT</span></div>
+      <nav id="nav">
+        <button class="nav active" data-view="panel">Panel</button>
+        <button class="nav" data-view="camara">Cámara</button>
+        <button class="nav" data-view="galeria">Galería</button>
+        <button class="nav" data-view="control">Control</button>
+        <button class="nav" data-view="historial">Historial</button>
+      </nav>
+      <div class="link" id="link-state"><span class="dot off"></span><span>Conectando…</span></div>
+    </aside>
 
-      <main class="content">
-        <section class="cards">
-          <article class="card">
-            <h2>Estado general</h2>
-            <p id="system-status">Cargando...</p>
-          </article>
-          <article class="card">
-            <h2>Wi‑Fi / ESP32</h2>
-            <p id="esp32-status">Cargando...</p>
-          </article>
-          <article class="card">
-            <h2>Cámara</h2>
-            <p id="camera-status">Cargando...</p>
-          </article>
-          <article class="card">
-            <h2>Nivel de alimento</h2>
-            <p id="food-level">Cargando...</p>
-          </article>
-        </section>
+    <main class="content">
+      <div id="banner" class="banner" hidden></div>
 
-        <section class="panel">
-          <div class="camera-block">
-            <h2>Vista en vivo</h2>
-            <img id="camera-stream" src="" alt="Cámara no disponible" />
-            <div class="actions">
-              <button id="capture-btn">Capturar</button>
-              <button id="refresh-btn">Actualizar</button>
-            </div>
+      <!-- PANEL -->
+      <section class="view active" id="view-panel">
+        <h1>Panel general</h1>
+        <div class="cards">
+          <article class="card"><h2>Dispensador</h2><p class="big" id="k-general">—</p><p class="sub" id="k-general-sub"></p></article>
+          <article class="card"><h2>ESP32</h2><p class="big" id="k-esp"><span class="dot off"></span>—</p><p class="sub" id="k-esp-sub"></p></article>
+          <article class="card"><h2>ESP32-CAM</h2><p class="big" id="k-cam"><span class="dot off"></span>—</p><p class="sub" id="k-cam-sub"></p></article>
+          <article class="card"><h2>Wi-Fi</h2><p class="big" id="k-wifi">—</p><p class="sub" id="k-wifi-sub"></p></article>
+          <article class="card"><h2>Nivel de alimento</h2>
+            <div class="gauge"><div class="gauge-fill" id="g-fill"></div></div>
+            <p class="big" id="k-nivel">—</p><p class="sub" id="k-nivel-sub"></p></article>
+          <article class="card"><h2>Distancia (sensor de tolva)</h2><p class="big" id="k-dist">—</p>
+            <canvas id="spark" width="300" height="60" aria-label="Historial de distancia"></canvas></article>
+          <article class="card"><h2>Servomotor</h2><p class="big" id="k-servo">—</p><p class="sub" id="k-servo-sub"></p></article>
+          <article class="card"><h2>Última dispensación</h2><p class="big" id="k-last">—</p><p class="sub" id="k-last-sub"></p></article>
+          <article class="card"><h2>Tiempo de actividad</h2><p class="big" id="k-up">—</p><p class="sub" id="k-up-sub"></p></article>
+          <article class="card wide"><h2>Última fotografía</h2>
+            <div id="k-photo" class="sub">Sin fotografías todavía.</div></article>
+          <article class="card wide"><h2>Alertas del sistema</h2><ul id="k-alerts" class="list"></ul></article>
+        </div>
+      </section>
+
+      <!-- CÁMARA -->
+      <section class="view" id="view-camara">
+        <h1>Cámara en tiempo real</h1>
+        <div class="camera-box">
+          <img id="cam-img" alt="Video en vivo de la ESP32-CAM" hidden />
+          <div id="cam-off" class="cam-off">Cámara desconectada.</div>
+          <span id="cam-flash" class="flash" hidden>● Captura guardada</span>
+        </div>
+        <div class="toolbar">
+          <button class="btn" id="btn-cam-refresh">Actualizar conexión</button>
+          <button class="btn primary" id="btn-capture">Capturar fotografía</button>
+          <label class="inline">Captura automática
+            <select id="auto-sel">
+              <option value="0">Desactivada</option><option value="30">Cada 30 s</option>
+              <option value="60">Cada 1 min</option><option value="300">Cada 5 min</option><option value="900">Cada 15 min</option>
+            </select></label>
+        </div>
+        <dl class="meta" id="cam-meta"></dl>
+        <p class="note">El flujo MJPEG y la foto puntual son mecanismos independientes. La ESP32-CAM atiende una petición a la vez, por eso la captura pausa el video un instante. Si el dispositivo no transmite video, se muestra un fotograma cada 3 s.</p>
+      </section>
+
+      <!-- GALERÍA -->
+      <section class="view" id="view-galeria">
+        <h1>Galería</h1>
+        <div class="toolbar">
+          <button class="btn" id="btn-gal-refresh">Actualizar</button>
+          <label class="inline">Orden
+            <select id="gal-order"><option value="desc">Más recientes primero</option><option value="asc">Más antiguas primero</option></select></label>
+          <span class="sub" id="gal-count"></span>
+        </div>
+        <div class="grid" id="gal-grid"></div>
+        <p class="sub" id="gal-empty" hidden>No hay fotografías. Capture una desde la pestaña Cámara.</p>
+      </section>
+
+      <!-- CONTROL -->
+      <section class="view" id="view-control">
+        <h1>Control del dispensador</h1>
+        <div class="card form">
+          <p class="sub" id="ctl-note"></p>
+          <label class="inline">Porciones
+            <select id="portions"></select></label>
+          <div class="toolbar">
+            <button class="btn primary" id="btn-dispense">Dispensar…</button>
+            <button class="btn" id="btn-reset">Borrar errores del ESP32</button>
           </div>
-          <div class="controls">
-            <h2>Dispensador</h2>
-            <button id="dispense-btn">Dispensar manual</button>
-            <p id="dispense-message">Acción deshabilitada por seguridad hasta calibración física.</p>
-          </div>
-        </section>
+          <p id="ctl-msg" class="msg" role="status"></p>
+          <dl class="meta" id="ctl-meta"></dl>
+        </div>
+      </section>
 
-        <section class="gallery">
-          <h2>Galería de capturas</h2>
-          <div id="gallery-grid"></div>
-        </section>
-      </main>
-    </div>
+      <!-- HISTORIAL -->
+      <section class="view" id="view-historial">
+        <h1>Historial</h1>
+        <div class="toolbar">
+          <label class="inline">Tipo
+            <select id="hist-type"><option value="">Todos</option><option value="foto">Fotografías</option>
+              <option value="dispensacion">Dispensaciones</option><option value="estado">Cambios de estado</option>
+              <option value="error">Errores</option><option value="conexion">Conexiones</option><option value="alerta">Alertas</option></select></label>
+          <button class="btn" id="btn-hist-refresh">Actualizar</button>
+        </div>
+        <ul class="list" id="hist-list"></ul>
+      </section>
+    </main>
+  </div>
 
-    <script src="/app.js"></script>
-  </body>
+  <!-- Visor de foto -->
+  <dialog id="dlg-photo"><img id="dlg-img" alt="Fotografía capturada" /><div class="toolbar">
+    <a class="btn" id="dlg-dl">Descargar</a><button class="btn" id="dlg-close">Cerrar</button></div></dialog>
+
+  <!-- Confirmación -->
+  <dialog id="dlg-confirm"><form method="dialog"><h3 id="dlg-title"></h3><p id="dlg-text"></p>
+    <div class="toolbar"><button class="btn" value="no">Cancelar</button><button class="btn danger" value="yes" id="dlg-yes">Confirmar</button></div></form></dialog>
+
+  <script src="/app.js"></script>
+</body>
 </html>

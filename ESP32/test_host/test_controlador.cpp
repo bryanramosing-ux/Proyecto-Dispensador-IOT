@@ -14,7 +14,8 @@
 struct FakeHW : Hardware {
   uint32_t t = 0;
   float dist = -1;
-  bool wifi = true, cam = true, pc = true, boton = false;
+  bool wifi = true, cam = true, pc = true, boton = false, botonCorto = false;
+  int reconexiones = 0, lecturasDist = 0;
   float vbat = 7.6f, vservo = 6.0f;
   std::deque<RespuestaClasificacion> respuestas;
   ResultadoDosis resultadoDosis = ResultadoDosis::OK;
@@ -27,9 +28,12 @@ struct FakeHW : Hardware {
   bool verbose = false;
 
   uint32_t ahoraMs() override { return t; }
-  float distanciaCm() override { return dist; }
+  float distanciaCm() override {
+    lecturasDist++;
+    return dist;
+  }
   bool wifiConectado() override { return wifi; }
-  void reconectarWifi() override {}
+  void reconectarWifi() override { reconexiones++; }
   bool camaraDisponible() override {
     consultasCamara++;
     return cam;
@@ -58,6 +62,11 @@ struct FakeHW : Hardware {
     return resultadoDosis;
   }
   bool botonResetPulsado() override { return boton; }
+  bool botonDispensarPulsado() override {   // un evento por pulsación
+    bool v = botonCorto;
+    botonCorto = false;
+    return v;
+  }
   void reiniciar() override { reinicios++; }
   void log(const char* m) override {
     if (verbose) printf("  %8u ms  %s\n", (unsigned)t, m);
@@ -75,6 +84,12 @@ static RespuestaClasificacion resp(int clase, float conf = 0.9f, const char* mot
 
 static Parametros params() {
   Parametros p{};
+  p.usarDeteccionAutomatica = true;   // escenarios originales: presencia + visión
+  p.ciclos[CLASE_MANUAL] = 1;
+  p.habilitada[CLASE_MANUAL] = true;
+  p.maxRacionesDia[CLASE_MANUAL] = 40;
+  p.maxPorcionesManual = 3;
+  p.botonDispensa = true;
   p.distMinCm = 3;
   p.distDeteccionCm = 35;
   p.distLibreCm = 50;
@@ -104,6 +119,17 @@ static Parametros params() {
   p.nivelVacioPct = 5;
   p.lecturasNivel = 3;
   p.reintentoAlertaMs = 30000;
+  return p;
+}
+
+// Montaje USB-C: un solo HC-SR04 (nivel), sin batería, sin visión.
+static Parametros paramsManual() {
+  Parametros p = params();
+  p.usarDeteccionAutomatica = false;
+  p.usarMonitorBateria = false;
+  p.usarMonitorServo = false;
+  p.cooldownGlobalMs = 15000;
+  p.intervaloNivelMs = 5000;
   return p;
 }
 
@@ -517,6 +543,171 @@ int main() {
     hw.pcRecibe = true;
     correr(c, hw, 31000);
     CHECK(hw.alertas.size() == 1 && hw.alertas.back() == "COMIDA_BAJA" && !c.alertaPendiente());
+  }
+
+  // ------------------------------------------------------------------------
+  // Dispensación manual (panel web / botón / serie) y modo sin visión
+  // ------------------------------------------------------------------------
+  {
+    prueba("Manual: pedido de 2 porciones aceptado -> 2 ciclos -> ESPERANDO, con registro");
+    FakeHW hw;
+    Controlador c(hw, paramsManual());
+    c.iniciar();
+    correr(c, hw, 500);
+    CHECK(c.solicitarDispensacion(2, Origen::PANEL) == Solicitud::ACEPTADA);
+    CHECK(c.dosisPendiente() && hw.dosis == 0);        // se ejecuta en el lazo, no dentro del pedido
+    correr(c, hw, 500);
+    CHECK(hw.dosis == 1 && hw.ciclosTotales == 2);
+    CHECK(c.estado() == Estado::ESPERANDO && !c.dosisPendiente());
+    CHECK(c.intentosDosis() == 1 && c.racionesTotales(CLASE_MANUAL) == 1);
+    CHECK(c.ultimoOrigen() == Origen::PANEL && c.ultimasPorciones() == 2);
+    CHECK(c.ultimoResultado() == ResultadoDosis::OK && c.racionesUltimas24hTotal() == 1);
+  }
+  {
+    prueba("Manual: porciones invalidas (0, 4, 200) se rechazan y el servo no se mueve");
+    FakeHW hw;
+    Controlador c(hw, paramsManual());
+    c.iniciar();
+    CHECK(c.solicitarDispensacion(0, Origen::PANEL) == Solicitud::PORCIONES_INVALIDAS);
+    CHECK(c.solicitarDispensacion(4, Origen::PANEL) == Solicitud::PORCIONES_INVALIDAS);
+    CHECK(c.solicitarDispensacion(200, Origen::SERIE) == Solicitud::PORCIONES_INVALIDAS);
+    correr(c, hw, 2000);
+    CHECK(hw.dosis == 0 && !c.dosisPendiente());
+  }
+  {
+    prueba("Manual: no hay dos dosis a la vez (OCUPADO) y despues rige el cooldown");
+    FakeHW hw;
+    Controlador c(hw, paramsManual());
+    c.iniciar();
+    CHECK(c.solicitarDispensacion(1, Origen::PANEL) == Solicitud::ACEPTADA);
+    CHECK(c.solicitarDispensacion(1, Origen::PANEL) == Solicitud::OCUPADO);   // hay una pendiente
+    c.actualizar();                                                           // ESPERANDO -> DOSIFICANDO
+    CHECK(c.estado() == Estado::DOSIFICANDO);
+    CHECK(c.solicitarDispensacion(1, Origen::PANEL) == Solicitud::OCUPADO);   // dosis en curso
+    correr(c, hw, 500);
+    CHECK(hw.dosis == 1);
+    CHECK(c.solicitarDispensacion(1, Origen::PANEL) == Solicitud::COOLDOWN);
+    correr(c, hw, 10000);
+    CHECK(c.solicitarDispensacion(1, Origen::BOTON) == Solicitud::COOLDOWN && c.cooldownRestanteMs() > 0);
+    correr(c, hw, 5000);
+    CHECK(c.solicitarDispensacion(1, Origen::PANEL) == Solicitud::ACEPTADA);
+    correr(c, hw, 500);
+    CHECK(hw.dosis == 2);
+  }
+  {
+    prueba("Manual sin Wi-Fi: NO es error, el boton dispensa, se reintenta la conexion y no hay reinicio");
+    FakeHW hw;
+    hw.wifi = false;
+    Controlador c(hw, paramsManual());
+    c.iniciar();
+    CHECK(c.estado() == Estado::ESPERANDO);
+    correr(c, hw, 1000);
+    hw.botonCorto = true;
+    correr(c, hw, 500);
+    CHECK(hw.dosis == 1 && c.ultimoOrigen() == Origen::BOTON && c.ultimasPorciones() == 1);
+    correr(c, hw, 400000);                 // casi 7 minutos sin Wi-Fi
+    CHECK(c.estado() == Estado::ESPERANDO && hw.reinicios == 0);
+    CHECK(hw.reconexiones >= 60);          // un reintento cada 5 s
+    CHECK(c.nivelTolva() == 80.0f);        // el nivel se siguió midiendo
+    hw.wifi = true;
+    int antes = hw.reconexiones;
+    correr(c, hw, 20000);
+    CHECK(hw.reconexiones == antes);
+  }
+  {
+    prueba("Manual: sin sensor de presencia no se mide distancia ni se clasifica aunque haya algo delante");
+    FakeHW hw;
+    Controlador c(hw, paramsManual());
+    c.iniciar();
+    hw.dist = 20;
+    hw.respuestas.push_back(resp(CLASE_PERRO));
+    correr(c, hw, 60000);
+    CHECK(hw.lecturasDist == 0 && hw.clasificaciones == 0 && hw.dosis == 0);
+  }
+  {
+    prueba("Manual: tolva vacia -> TOLVA_VACIA; al reponer vuelve a aceptar");
+    FakeHW hw;
+    Controlador c(hw, paramsManual());
+    c.iniciar();
+    hw.nivel = 1;
+    correr(c, hw, 20000);
+    CHECK(c.alertaNivel() == Alerta::COMIDA_AGOTADA);
+    CHECK(c.solicitarDispensacion(1, Origen::PANEL) == Solicitud::TOLVA_VACIA);
+    hw.botonCorto = true;
+    correr(c, hw, 1000);
+    CHECK(hw.dosis == 0);
+    hw.nivel = 70;
+    correr(c, hw, 20000);
+    CHECK(c.solicitarDispensacion(1, Origen::PANEL) == Solicitud::ACEPTADA);
+  }
+  {
+    prueba("Manual: atasco -> ERROR_MECANISMO; pedidos y boton rechazados hasta borrar el error");
+    FakeHW hw;
+    Controlador c(hw, paramsManual());
+    c.iniciar();
+    hw.resultadoDosis = ResultadoDosis::ATASCO;
+    CHECK(c.solicitarDispensacion(1, Origen::PANEL) == Solicitud::ACEPTADA);
+    correr(c, hw, 500);
+    CHECK(c.estado() == Estado::ERROR_MECANISMO && c.ultimoResultado() == ResultadoDosis::ATASCO);
+    CHECK(c.intentosDosis() == 1);
+    CHECK(c.solicitarDispensacion(1, Origen::PANEL) == Solicitud::ERROR_ACTIVO);
+    hw.botonCorto = true;                  // pulsación corta durante el error: se descarta
+    correr(c, hw, 60000);
+    CHECK(hw.dosis == 1 && c.estado() == Estado::ERROR_MECANISMO);
+    hw.resultadoDosis = ResultadoDosis::OK;
+    CHECK(c.borrarErrores());
+    CHECK(!c.borrarErrores());             // ya no había error
+    correr(c, hw, 1000);
+    CHECK(hw.dosis == 1);                  // la pulsación vieja no quedó guardada
+    CHECK(c.solicitarDispensacion(1, Origen::PANEL) == Solicitud::ACEPTADA);
+  }
+  {
+    prueba("Manual: limite diario y dispensacion manual deshabilitada");
+    FakeHW hw;
+    Parametros p = paramsManual();
+    p.cooldownGlobalMs = 0;
+    p.maxRacionesDia[CLASE_MANUAL] = 2;
+    Controlador c(hw, p);
+    c.iniciar();
+    for (int i = 0; i < 2; i++) {
+      CHECK(c.solicitarDispensacion(1, Origen::PANEL) == Solicitud::ACEPTADA);
+      correr(c, hw, 500);
+    }
+    CHECK(c.solicitarDispensacion(1, Origen::PANEL) == Solicitud::LIMITE_DIARIO);
+    hw.t += 86400000UL;
+    CHECK(c.solicitarDispensacion(1, Origen::PANEL) == Solicitud::ACEPTADA);
+
+    FakeHW hw2;
+    p.habilitada[CLASE_MANUAL] = false;
+    Controlador c2(hw2, p);
+    c2.iniciar();
+    CHECK(c2.solicitarDispensacion(1, Origen::PANEL) == Solicitud::DESHABILITADA);
+  }
+  {
+    prueba("Manual con monitor del riel: sin tension en el servo se rechaza el pedido");
+    FakeHW hw;
+    Parametros p = paramsManual();
+    p.usarMonitorServo = true;
+    p.vservoMin = 4.3f;
+    Controlador c(hw, p);
+    c.iniciar();
+    hw.vservo = 0.3f;
+    CHECK(c.solicitarDispensacion(1, Origen::PANEL) == Solicitud::SIN_ALIMENTACION_SERVO);
+    hw.vservo = 5.0f;
+    CHECK(c.solicitarDispensacion(1, Origen::PANEL) == Solicitud::ACEPTADA);
+  }
+  {
+    prueba("Modo automatico: el pedido manual tambien funciona y respeta el cooldown global");
+    FakeHW hw;
+    Controlador c(hw, params());
+    c.iniciar();
+    CHECK(c.solicitarDispensacion(1, Origen::PANEL) == Solicitud::ACEPTADA);
+    correr(c, hw, 500);
+    CHECK(hw.dosis == 1 && hw.ciclosTotales == 1);
+    hw.respuestas.push_back(resp(CLASE_PERRO));
+    hw.dist = 20;
+    correr(c, hw, 5000);
+    CHECK(hw.clasificaciones == 0);        // cooldown global de 30 s tras la manual
   }
 
   {

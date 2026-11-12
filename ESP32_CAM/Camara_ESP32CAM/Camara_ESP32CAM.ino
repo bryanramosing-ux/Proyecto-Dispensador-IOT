@@ -148,8 +148,6 @@ void manejarStream() {
   servidor.sendHeader("Cache-Control", "no-store");
   servidor.sendHeader("Connection", "close");
   servidor.send(200, "multipart/x-mixed-replace; boundary=esp32cam", "");
-  servidor.client().println();
-  servidor.client().print("--esp32cam\r\n");
 
   for (uint8_t i = 0; i < 20 && servidor.client().connected(); ++i) {
     enviarFrameStream();
@@ -158,13 +156,26 @@ void manejarStream() {
 }
 
 void manejarEstado() {
-  char buf[256];
+  char buf[320];
+  sensor_t* sn = camaraOk ? esp_camera_sensor_get() : nullptr;
+  const char* res = "n/d";
+  if (sn) {
+    switch (sn->status.framesize) {
+      case FRAMESIZE_QVGA: res = "QVGA 320x240"; break;
+      case FRAMESIZE_VGA: res = "VGA 640x480"; break;
+      case FRAMESIZE_SVGA: res = "SVGA 800x600"; break;
+      case FRAMESIZE_XGA: res = "XGA 1024x768"; break;
+      default: res = "otra"; break;
+    }
+  }
   snprintf(buf, sizeof(buf),
            "{\"camara\":%s,\"psram\":%s,\"fotos_ok\":%lu,\"fotos_fallidas\":%lu,"
-           "\"rssi\":%d,\"heap\":%u,\"uptime_s\":%lu,\"stream\":true}",
+           "\"rssi\":%d,\"heap\":%u,\"uptime_s\":%lu,\"stream\":true,"
+           "\"resolucion\":\"%s\",\"ip\":\"%s\"}",
            camaraOk ? "true" : "false", psramFound() ? "true" : "false",
            (unsigned long)fotosOk, (unsigned long)fotosFallidas, WiFi.RSSI(),
-           (unsigned)ESP.getFreeHeap(), (unsigned long)(millis() / 1000));
+           (unsigned)ESP.getFreeHeap(), (unsigned long)(millis() / 1000), res,
+           WiFi.localIP().toString().c_str());
   servidor.send(camaraOk ? 200 : 503, "application/json", buf);
 }
 

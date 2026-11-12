@@ -1,12 +1,3 @@
-# Framework ligero para la API local del dispensador.
-#
-# Instalar:
-#   python -m venv .venv
-#   source .venv/bin/activate
-#   pip install -r backend/requirements.txt
-#
-# Ejecutar:
-#   python backend/dashboard_server.py
-
-Flask>=3.0.0
-requests>=2.32.0
+# El backend usa SOLO la biblioteca estándar de Python 3.10+: no hay dependencias que instalar.
+#   python3 backend/dashboard_server.py
+# (Pillow es opcional y solo lo usa backend/tests/simulador_dispositivos.py para dibujar imágenes simuladas.)

@@ -39,6 +39,42 @@ const char* nombreAlerta(Alerta a) {
   return "?";
 }
 
+const char* nombreResultado(ResultadoDosis r) {
+  switch (r) {
+    case ResultadoDosis::OK:                     return "OK";
+    case ResultadoDosis::SIN_ALIMENTACION_SERVO: return "SIN_ALIMENTACION_SERVO";
+    case ResultadoDosis::ATASCO:                 return "ATASCO";
+    case ResultadoDosis::NINGUNA:                return "NINGUNA";
+  }
+  return "?";
+}
+
+const char* nombreSolicitud(Solicitud s) {
+  switch (s) {
+    case Solicitud::ACEPTADA:               return "ACEPTADA";
+    case Solicitud::OCUPADO:                return "OCUPADO";
+    case Solicitud::ERROR_ACTIVO:           return "ERROR_ACTIVO";
+    case Solicitud::PORCIONES_INVALIDAS:    return "PORCIONES_INVALIDAS";
+    case Solicitud::DESHABILITADA:          return "DESHABILITADA";
+    case Solicitud::COOLDOWN:               return "COOLDOWN";
+    case Solicitud::LIMITE_DIARIO:          return "LIMITE_DIARIO";
+    case Solicitud::TOLVA_VACIA:            return "TOLVA_VACIA";
+    case Solicitud::SIN_ALIMENTACION_SERVO: return "SIN_ALIMENTACION_SERVO";
+  }
+  return "?";
+}
+
+const char* nombreOrigen(Origen o) {
+  switch (o) {
+    case Origen::NINGUNO:    return "NINGUNO";
+    case Origen::PANEL:      return "PANEL";
+    case Origen::BOTON:      return "BOTON";
+    case Origen::SERIE:      return "SERIE";
+    case Origen::AUTOMATICO: return "AUTOMATICO";
+  }
+  return "?";
+}
+
 Controlador::Controlador(Hardware& hw, const Parametros& p) : hw_(hw), p_(p) {}
 
 // ----------------------------------------------------------------------------
@@ -111,8 +147,11 @@ void Controlador::logf(const char* fmt, ...) {
 void Controlador::iniciar() {
   tEstado_ = hw_.ahoraMs();
   zonaArmada_ = true;
-  if (!hw_.wifiConectado()) {
+  tReintentoWifi_ = tEstado_;
+  if (!hw_.wifiConectado() && p_.usarDeteccionAutomatica) {
     cambiarA(Estado::ERROR_WIFI, "sin Wi-Fi al iniciar");
+  } else if (!hw_.wifiConectado()) {
+    cambiarA(Estado::ESPERANDO, "sistema iniciado sin Wi-Fi (control local activo)");
   } else {
     cambiarA(Estado::ESPERANDO, "sistema iniciado");
   }
@@ -144,10 +183,39 @@ void Controlador::volverAEsperar(const char* motivo) {
   cambiarA(Estado::ESPERANDO, motivo);
 }
 
-void Controlador::borrarErrores() {
+bool Controlador::borrarErrores() {
   if (estado_ >= Estado::ERROR_WIFI) {
     volverAEsperar("errores borrados manualmente");
+    return true;
   }
+  return false;
+}
+
+// ----------------------------------------------------------------------------
+// Dispensación manual: TODA petición (panel, botón o serie) pasa por aquí.
+// Un pedido inválido o inoportuno se rechaza y el servo no se mueve.
+// ----------------------------------------------------------------------------
+Solicitud Controlador::evaluarSolicitud(uint8_t porciones) {
+  if (!p_.habilitada[CLASE_MANUAL]) return Solicitud::DESHABILITADA;
+  if (porciones < 1 || porciones > p_.maxPorcionesManual) return Solicitud::PORCIONES_INVALIDAS;
+  if (estado_ >= Estado::ERROR_WIFI) return Solicitud::ERROR_ACTIVO;
+  if (estado_ != Estado::ESPERANDO || porcionesPendientes_ > 0) return Solicitud::OCUPADO;
+  if (cooldownRestanteMs() > 0) return Solicitud::COOLDOWN;
+  char porque[64];
+  Solicitud v = verificarRacion(CLASE_MANUAL, porque, sizeof(porque));
+  if (v != Solicitud::ACEPTADA) return v;
+  if (p_.usarMonitorServo && hw_.voltajeServo() < p_.vservoMin) return Solicitud::SIN_ALIMENTACION_SERVO;
+  return Solicitud::ACEPTADA;
+}
+
+Solicitud Controlador::solicitarDispensacion(uint8_t porciones, Origen origen) {
+  Solicitud r = evaluarSolicitud(porciones);
+  logf("Pedido de dispensacion %s x%u: %s", nombreOrigen(origen), (unsigned)porciones, nombreSolicitud(r));
+  if (r == Solicitud::ACEPTADA) {
+    porcionesPendientes_ = porciones;
+    origenPendiente_ = origen;
+  }
+  return r;
 }
 
 // ----------------------------------------------------------------------------
@@ -163,8 +231,14 @@ void Controlador::registrarRacion(int clase) {
   tUltimaRacion_ = ahora;
 }
 
+uint16_t Controlador::racionesUltimas24hTotal() const {
+  uint16_t n = 0;
+  for (int c = 1; c < N_CLASES; c++) n += racionesUltimas24h(c);
+  return n;
+}
+
 uint8_t Controlador::racionesUltimas24h(int clase) const {
-  if (clase < 1 || clase > 2) return 0;
+  if (clase < 1 || clase >= N_CLASES) return 0;
   uint32_t ahora = hw_.ahoraMs();
   uint8_t n = 0;
   for (uint8_t i = 0; i < nRegistro_[clase]; i++) {
@@ -179,10 +253,10 @@ uint32_t Controlador::cooldownRestanteMs() const {
   return trans >= p_.cooldownGlobalMs ? 0 : p_.cooldownGlobalMs - trans;
 }
 
-bool Controlador::racionPermitida(int clase, char* porque, int n) {
+Solicitud Controlador::verificarRacion(int clase, char* porque, int n) const {
   if (!p_.habilitada[clase]) {
     snprintf(porque, n, "clase deshabilitada");
-    return false;
+    return Solicitud::DESHABILITADA;
   }
   if (nRegistro_[clase] > 0) {
     uint8_t ult = (posRegistro_[clase] + REGISTRO - 1) % REGISTRO;
@@ -190,20 +264,20 @@ bool Controlador::racionPermitida(int clase, char* porque, int n) {
     if (trans < p_.cooldownClaseMs[clase]) {
       snprintf(porque, n, "cooldown de clase activo (%lu s restantes)",
                (unsigned long)((p_.cooldownClaseMs[clase] - trans) / 1000));
-      return false;
+      return Solicitud::COOLDOWN;
     }
   }
   if (racionesUltimas24h(clase) >= p_.maxRacionesDia[clase]) {
     snprintf(porque, n, "limite diario alcanzado");
-    return false;
+    return Solicitud::LIMITE_DIARIO;
   }
   // Tolva vacía confirmada: girar el disco no entregaría nada y la ración se
   // contaría mal. Si el nivel es DESCONOCIDO (sensor sin lectura) se alimenta igual.
   if (p_.usarSensorNivel && alertaNivel_ == Alerta::COMIDA_AGOTADA) {
     snprintf(porque, n, "tolva vacia: reponer alimento");
-    return false;
+    return Solicitud::TOLVA_VACIA;
   }
-  return true;
+  return Solicitud::ACEPTADA;
 }
 
 // ----------------------------------------------------------------------------
@@ -229,16 +303,50 @@ void Controlador::actualizar() {
   }
 
   // --- Supervisión de Wi-Fi ---
-  if (!esErrorBloqueante() && estado_ != Estado::ERROR_ALIMENTACION &&
-      estado_ != Estado::ERROR_WIFI && !hw_.wifiConectado()) {
-    cambiarA(Estado::ERROR_WIFI, "conexion perdida");
-    return;
+  // Modo automático: sin Wi-Fi no se puede clasificar -> ERROR_WIFI.
+  // Modo manual: la falta de Wi-Fi NO detiene nada (nivel, botón y servo siguen
+  // funcionando); solo se reintenta la conexión de fondo.
+  if (p_.usarDeteccionAutomatica) {
+    if (!esErrorBloqueante() && estado_ != Estado::ERROR_ALIMENTACION &&
+        estado_ != Estado::ERROR_WIFI && !hw_.wifiConectado()) {
+      cambiarA(Estado::ERROR_WIFI, "conexion perdida");
+      return;
+    }
+  } else if (!hw_.wifiConectado()) {
+    if (ahora - tReintentoWifi_ >= p_.wifiReintentoMs) {
+      tReintentoWifi_ = ahora;
+      hw_.reconectarWifi();
+    }
+  }
+
+  // Una pulsación corta solo vale en ESPERANDO; en cualquier otro estado se descarta
+  // (se consume igual para que no quede "guardada" y dispare más tarde).
+  if (p_.botonDispensa && hw_.botonDispensarPulsado() && estado_ == Estado::ESPERANDO) {
+    solicitarDispensacion(1, Origen::BOTON);
   }
 
   switch (estado_) {
     // ------------------------------------------------------------------
     case Estado::ESPERANDO: {
       vigilarNivel(ahora);
+
+      // Pedido manual aceptado: se ejecuta ahora (ya fue validado al pedirlo).
+      if (porcionesPendientes_ > 0) {
+        uint16_t ciclos = (uint16_t)porcionesPendientes_ * p_.ciclos[CLASE_MANUAL];
+        if (ciclos < 1) ciclos = 1;
+        if (ciclos > p_.maxCiclosPorRacion) ciclos = p_.maxCiclosPorRacion;
+        ciclosManual_ = (uint8_t)ciclos;
+        ultimaClase_ = CLASE_MANUAL;
+        ultimoOrigen_ = origenPendiente_;
+        ultimasPorciones_ = porcionesPendientes_;
+        porcionesPendientes_ = 0;
+        char m[48];
+        snprintf(m, sizeof(m), "racion MANUAL x%u (%s)", (unsigned)ultimasPorciones_, nombreOrigen(ultimoOrigen_));
+        cambiarA(Estado::DOSIFICANDO, m);
+        break;
+      }
+      if (!p_.usarDeteccionAutomatica) break;   // sin sensor de presencia: nada más que hacer
+
       float d = hw_.distanciaCm();
       ultimaDistancia_ = d;
       bool presente = mascotaPresente(d);
@@ -331,7 +439,7 @@ void Controlador::actualizar() {
       }
 
       char porque[64];
-      if (!racionPermitida(c, porque, sizeof(porque))) {
+      if (verificarRacion(c, porque, sizeof(porque)) != Solicitud::ACEPTADA) {
         volverAEsperar(porque);
         break;
       }
@@ -345,15 +453,20 @@ void Controlador::actualizar() {
         cambiarA(Estado::ERROR_SERVO, "riel de alimentacion del servo ausente o bajo");
         break;
       }
+      ultimoOrigen_ = Origen::AUTOMATICO;
+      ultimasPorciones_ = 1;
       cambiarA(Estado::DOSIFICANDO, c == CLASE_PERRO ? "racion PERRO" : "racion GATO");
       break;
     }
 
     // ------------------------------------------------------------------
     case Estado::DOSIFICANDO: {
-      uint8_t ciclos = p_.ciclos[ultimaClase_];
+      uint8_t ciclos = ultimaClase_ == CLASE_MANUAL ? ciclosManual_ : p_.ciclos[ultimaClase_];
       if (ciclos > p_.maxCiclosPorRacion) ciclos = p_.maxCiclosPorRacion;
       ResultadoDosis r = hw_.dosificar(ciclos);
+      intentosDosis_++;
+      ultimoResultado_ = r;
+      tUltimaDosis_ = hw_.ahoraMs();
       if (r == ResultadoDosis::OK) {
         registrarRacion(ultimaClase_);
         nivelMedido_ = false;   // volver a medir la tolva enseguida

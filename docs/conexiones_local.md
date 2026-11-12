@@ -1,5 +1,7 @@
 # Conexiones mínimas y medidas de seguridad
 
+> **Reemplazado:** el diseño vigente para el montaje USB-C está en [`conexiones_usbc.md`](conexiones_usbc.md). Este archivo se conserva solo como notas previas; la dispensación remota ya existe (con token, confirmación y límites).
+
 ## Recomendación actual
 
 El sistema mantiene la topología ya validada en el repositorio: ESP32 y ESP32-CAM enlazados por Wi‑Fi local y un PC con Python actuando como backend/visualizador local.

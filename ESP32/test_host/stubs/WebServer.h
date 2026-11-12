@@ -1,7 +1,7 @@
 #pragma once
 #include <functional>
 #include "WiFi.h"
-enum HTTPMethod { HTTP_GET = 1 };
+enum HTTPMethod { HTTP_GET = 1, HTTP_POST = 2 };
 class WebServer {
  public:
   explicit WebServer(int) {}
@@ -13,6 +13,8 @@ class WebServer {
   void send(int, const char*, const char*) {}
   void sendHeader(const char*, const char*) {}
   void setContentLength(size_t) {}
+  bool hasArg(const char*) { return false; }
+  String arg(const char*) { return String(); }
   WiFiClient& client() { return c_; }
  private:
   WiFiClient c_;

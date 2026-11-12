@@ -2,35 +2,34 @@
 
 Proyecto universitario para controlar y supervisar un dispensador de alimento mediante un ESP32 DevKit V1, sensores HC-SR04, un servo MG995, una ESP32-CAM AI-Thinker y un dashboard accesible en la red local.
 
-> **Estado importante:** la rama incluye firmware, una API local y un dashboard en desarrollo. No se puede prometer ausencia total de errores ni afirmar que el hardware está validado sin probarlo físicamente. El último CI conocido falló en el stub de pruebas de la ESP32-CAM; vuelva a ejecutar las Actions después de estos cambios. La dispensación desde la red permanece deshabilitada deliberadamente hasta validar el circuito, la calibración mecánica y los interbloqueos.
+> **Estado:** firmware, backend y dashboard implementados y probados **por software** (pruebas de lógica en PC, 24 pruebas del backend con dispositivos simulados y verificación manual del dashboard contra un simulador). **No se ha probado el hardware físico** (ambos firmwares sí compilan con `arduino-cli`): siga la lista de verificación de [`docs/conexiones_usbc.md`](docs/conexiones_usbc.md) antes de energizar. La dispensación desde la web está habilitada solo si define `TOKEN_DISPOSITIVO`.
 
 ## Funciones implementadas
 
-- El ESP32 controla el proceso local, HC-SR04 y MG995 con firmware modular; el control local no depende del dashboard.
-- La ESP32-CAM expone endpoints HTTP de estado, captura JPEG y flujo MJPEG de duración limitada por conexión.
-- El backend Python sirve el dashboard y agrega el estado de ambos dispositivos, captura y almacenamiento persistente local de fotos, galería, borrado validado e historial JSONL.
-- El frontend muestra estados, nivel/distancia cuando están disponibles, cámara, capturas, galería, historial y operación manual (bloqueada de forma segura por defecto).
-- Credenciales y direcciones de red se configuran localmente; no se deben subir credenciales reales.
+- **ESP32:** control local de HC-SR04 y MG995 con máquina de estados; sigue funcionando sin Wi‑Fi (botón BOOT). Envía telemetría al backend, descubre al backend por UDP y acepta comandos con token.
+- **ESP32-CAM:** `GET /status`, `GET /capture` (foto puntual) y `GET /stream` (MJPEG), independientes entre sí.
+- **Backend (Python, solo biblioteca estándar):** telemetría, descubrimiento UDP, proxy de video, galería en disco, historial en SQLite, dispensación con validación y actualización en vivo por SSE.
+- **Dashboard:** panel, cámara (video + captura manual/automática), galería (ver, descargar, eliminar con confirmación), control con confirmación e historial. Muestra *desconectado* en lugar de datos viejos.
+- Credenciales y token se configuran en archivos locales que no se suben a GitHub.
 
 ## Arquitectura
 
 ```text
 ESP32 DevKit ── Wi‑Fi/LAN ──┐
-                            ├── PC local: backend + dashboard ── navegador
+                            ├── PC local: backend + dashboard ── navegador (PC/móvil/tablet)
 ESP32-CAM ─── Wi‑Fi/LAN ───┘
-     └── /status, /capture, /stream
-ESP32: HC-SR04 + MG995 conectados localmente
+ESP32: HC-SR04 + MG995 por GPIO
 ```
 
-La comunicación básica no requiere cloud ni Internet. El PC, ESP32 y cámara deben estar en la misma red LAN. La dirección del dashboard debe ser la IP LAN del PC, por ejemplo `http://192.168.1.20:8001`; `localhost` solo funciona en el propio PC.
+Sin Internet ni cloud. El dashboard se abre en `http://<IP-LAN-del-PC>:8001` (`localhost` solo sirve en el propio PC). Detalle y decisiones (SSE en lugar de WebSocket, descubrimiento UDP): [`docs/arquitectura_local.md`](docs/arquitectura_local.md).
 
 ## Componentes y exclusiones
 
-Componentes previstos: ESP32 DevKit V1, ESP32-CAM AI-Thinker (confirmar variante), servo MG995, uno o más HC-SR04, fuente(s) regulada(s) y cable USB-C según el montaje confirmado. No forman parte del diseño objetivo: panel solar, fusible, RC522 ni NFC.
+ESP32 DevKit V1, ESP32-CAM AI-Thinker, servo MG995, HC-SR04 (nivel de tolva; presencia opcional), adaptador USB-C de 5 V ≥ 3 A, cable USB-C, protoboard/Dupont. **No forman parte del diseño:** panel solar, fusible, RC522, NFC.
 
-### Advertencia eléctrica: no construir a partir de una suposición
+### Advertencia eléctrica
 
-La documentación eléctrica heredada del repositorio describe una instalación solar/batería/fusible y **no es el diseño final solicitado**. No conecte el montaje heredado como si fuera el esquema USB-C actualizado. Antes de reemplazarlo hacen falta el modelo y especificaciones de las fuentes disponibles, el montaje físico, el consumo/arranque del servo y la distribución de 5 V/6 V confirmada con mediciones. No se debe alimentar el MG995 desde un GPIO o desde el regulador de la placa; use una fuente regulada adecuada para el servo y GND común con el ESP32. El HC-SR04 tradicional puede emitir ECHO de 5 V: use divisor/adaptación de nivel y mida que el GPIO no supere su límite. La cámara requiere alimentación estable. Consulte [conexiones y restricciones](docs/conexiones_local.md) y no energice si no puede verificar el cableado con multímetro.
+El esquema en `Documentation/wiring/` y el manual de armado describen el montaje **anterior** (solar + batería 2S + fusible); no lo use para el montaje USB-C. El diseño vigente, con divisores calculados y distribución de 5 V, está en [`docs/conexiones_usbc.md`](docs/conexiones_usbc.md). Puntos críticos: el MG995 nunca se alimenta desde un GPIO ni desde la placa ESP32; el ECHO de 5 V pasa por divisor 1 kΩ/2 kΩ (3,33 V); GND común; la cámara exige 5 V estables. Sin fusible, la protección depende del adaptador. Si al mover el servo algo se reinicia, hace falta una segunda fuente de 5 V para el servo (solo GND compartido).
 
 ## Requisitos de software
 
@@ -41,98 +40,72 @@ La documentación eléctrica heredada del repositorio describe una instalación 
 
 ## Instalación y configuración
 
-1. Clonar el repositorio y cambiar a la rama que contiene esta implementación:
+1. Clonar y entrar al repositorio:
 
    ```bash
    git clone https://github.com/bryanramosing-ux/Proyecto-Dispensador-IOT.git
    cd Proyecto-Dispensador-IOT
-   git checkout copilot/trabajo-asistente
    ```
 
-2. Crear los archivos locales de credenciales, sin versionarlos:
+2. Crear los `secrets.h` locales (no se versionan) y editar SSID, clave y token:
 
    ```bash
    cp ESP32/Dispensador_ESP32/secrets_ejemplo.h ESP32/Dispensador_ESP32/secrets.h
    cp ESP32_CAM/Camara_ESP32CAM/secrets_ejemplo.h ESP32_CAM/Camara_ESP32CAM/secrets.h
+   python3 -c "import secrets; print(secrets.token_hex(8))"   # use este valor como token
    ```
 
-   Editar los dos `secrets.h` con el SSID/clave Wi-Fi real. No publicar esos datos. Asegúrese de que ambas placas y el PC usan la misma LAN de 2.4 GHz.
+   El mismo token va en `TOKEN_DISPOSITIVO` de `ESP32/.../secrets.h` y en `backend/.env`. Red Wi‑Fi de 2,4 GHz.
 
-3. Configurar IP reservada o estática en el router y actualizar las direcciones correspondientes en `ESP32/Dispensador_ESP32/config.h`, `ESP32_CAM/Camara_ESP32CAM/config.h` y `backend/.env` (copiar `.env.example`). Evite conflictos de IP; gateway y máscara deben coincidir con la red local.
-
-4. Compilar/cargar los firmwares siguiendo [`ESP32/README.md`](ESP32/README.md) y [`ESP32_CAM/README.md`](ESP32_CAM/README.md). Cargue primero con el hardware de potencia desconectado cuando sea necesario; verifique el circuito antes de conectar servo o sensores.
-
-5. Iniciar el dashboard:
+3. Configurar el backend:
 
    ```bash
-   python -m venv .venv
-   # Linux/macOS
-   source .venv/bin/activate
-   # Windows PowerShell: .venv\Scripts\Activate.ps1
-   cp backend/.env.example backend/.env
-   python backend/dashboard_server.py
+   cp backend/.env.example backend/.env    # edite ESP32_CAM_URL y TOKEN_DISPOSITIVO
    ```
 
-   El servidor carga variables desde el entorno y, si existe, desde `backend/.env`. Abra `http://localhost:8001` en el PC o `http://<IP-LAN-del-PC>:8001` desde otro dispositivo de la misma red.
+   Reserve en el router una IP para la ESP32-CAM y use la misma en `IP_CAMARA` (`ESP32_CAM/Camara_ESP32CAM/config.h`) y `ESP32_CAM_URL`. El ESP32 usa DHCP y descubre al backend solo; si su router bloquea el broadcast UDP, defina `URL_BACKEND` en su `secrets.h`.
+
+4. Compilar y cargar los firmwares según [`ESP32/README.md`](ESP32/README.md) y [`ESP32_CAM/README.md`](ESP32_CAM/README.md), con la potencia (servo) desconectada la primera vez.
+
+5. Iniciar el backend (Python 3.10+, sin dependencias):
+
+   ```bash
+   python3 backend/dashboard_server.py
+   ```
+
+   Abra `http://localhost:8001` en el PC o `http://<IP-LAN-del-PC>:8001` desde el móvil (permita el puerto 8001 y el UDP 41234 en el firewall). Para probar el dashboard sin hardware: `python3 backend/tests/simulador_dispositivos.py` (usa token `demo`; todo lo que muestra es **simulado**).
 
 ## Configuración del backend
 
-Variables en `backend/.env`:
-
-| Variable | Predeterminado | Descripción |
-|---|---|---|
-| `ESP32_CAM_URL` | `http://192.168.1.51` | URL base de la cámara |
-| `ESP32_URL` | `http://192.168.1.52` | URL base del ESP32 |
-| `HOST` | `0.0.0.0` | Interfaz de escucha; para uso solo local, usar `127.0.0.1` |
-| `PORT` | `8001` | Puerto HTTP del dashboard |
-
-No exponga el puerto a Internet ni configure redirección de puertos en el router. El servidor HTTP local no proporciona autenticación ni TLS y debe usarse únicamente en una LAN confiable.
+Variables de `backend/.env` (ver `.env.example`): `ESP32_CAM_URL`, `TOKEN_DISPOSITIVO`, `HOST` (`0.0.0.0` LAN / `127.0.0.1` solo este PC), `PORT`, `PUERTO_DESCUBRIMIENTO`, `MAX_PORCIONES`, `MIN_DISPENSE_GAP_S`, `ESP32_URL` (respaldo). No exponga el puerto a Internet: no hay TLS ni inicio de sesión.
 
 ## API local
 
-| Método y ruta | Función |
-|---|---|
-| `GET /api/health` | Health check y URL configuradas |
-| `GET /api/status` | Consulta estados de cámara y ESP32; los errores indican que un dispositivo no respondió |
-| `POST /api/capture` | Pide una nueva foto JPEG y la guarda localmente |
-| `GET /api/gallery` | Lista capturas locales |
-| `GET /api/gallery/<nombre>` | Muestra/descarga una captura JPEG validada |
-| `DELETE /api/gallery/<nombre>` | Borra únicamente capturas generadas por el sistema |
-| `GET /api/history` | Historial persistente de eventos recientes |
-| `GET /api/camera/stream` | Proxy del flujo MJPEG de la cámara |
-| `POST /api/dispense` | Rechazado (HTTP 501) hasta validación y autorización de seguridad |
-
-Las capturas e historial se guardan bajo `backend/storage/` y sobreviven al reinicio del proceso. No elimine esa carpeta si desea conservarlos.
+Resumen: telemetría (`/api/device/*`), `GET /api/status`, `GET /api/events` (SSE), `GET /api/camera/stream`, `POST /api/capture`, galería (`/api/gallery`), `POST /api/dispense`, `GET /api/history`, `POST /api/auto-capture`. Tabla completa, campos de la telemetría y medidas de seguridad en [`docs/arquitectura_local.md`](docs/arquitectura_local.md). Fotos e historial persisten en `backend/storage/` (no la borre si quiere conservarlos).
 
 ## Uso y límites funcionales
 
-- El dashboard actualiza periódicamente el estado; no se debe interpretar un dato con error o desconectado como estado actual válido.
-- La transmisión de cámara está implementada como sesiones MJPEG de duración limitada que el dashboard vuelve a solicitar. No equivale a un servicio de streaming probado con múltiples clientes y el servidor integrado `WebServer` de la cámara puede atender una petición a la vez.
-- Captura manual guarda una foto nueva; la galería permite visualizar, descargar y eliminar después de confirmación.
-- La dispensación remota no está habilitada. Solo se debe habilitar en una futura revisión después de incorporar controles en el firmware y verificar sensor, nivel, cooldown, fallos del servo y presencia/seguridad de la mascota. No se active por cambiar solo el frontend.
-- La captura automática configurable desde dashboard y WebSockets no están implementados en esta entrega.
+- **Dispensar:** pestaña *Control* → elegir porciones → *Dispensar…* → confirmar. Se rechaza si no hay token, el ESP32 está desconectado, ya hay una dispensación o rige el cooldown. Nunca se dispensa al abrir la página.
+- **Foto:** pestaña *Cámara* → *Capturar fotografía* (o captura automática cada 30 s–15 min). Se guarda en la galería, donde puede verse, descargarse o eliminarse con confirmación.
+- El video MJPEG de la ESP32-CAM va en sesiones de ~2 s que el backend reconecta sin que se note; la cámara atiende una petición a la vez, por lo que una captura con el video abierto puede tardar unos segundos y se recomienda un solo espectador a la vez.
+- Los dispositivos desconectados se marcan tras 15 s sin telemetría; no se muestran sus valores anteriores como actuales.
+- Valores de calibración (`PULSO_*_US`, `DIST_TOLVA_VACIA_CM`, dosis) en `config.h` son **provisionales** hasta medirlos en el montaje.
 
 ## Pruebas y validación
 
-Pruebas que se pueden ejecutar sin hardware:
-
 ```bash
-make -C ESP32/test_host
-# Requiere clonar ArduinoJson a ESP32/test_host/ArduinoJson (ver ESP32/README.md)
-make -C ESP32/test_host sintaxis
-python -m unittest discover -s backend/tests -v
+make -C ESP32/test_host                          # lógica del ESP32 (26+ escenarios, en PC)
+python3 -I -m unittest discover -s backend/tests -v   # backend con ESP32/cámara simulados
 ```
 
-La CI también compila firmware para Arduino-ESP32 2.x/3.x, ejecuta lógica, verifica geometría/documentación y otras pruebas. Consulte la pestaña **Actions**; una ejecución correcta no valida la electrónica física ni Wi-Fi.
-
-Antes de la demostración real, validar bajo supervisión y registrar resultados: tensión de alimentación en reposo y durante movimiento del servo, corriente y temperatura, ECHO tras divisor, reinicios/brownout, distancia y calibración del nivel, recorrido mecánico, cámara/MJPEG, pérdida y recuperación de Wi-Fi, reinicio de backend y funcionamiento desde un teléfono. No declarar hardware aprobado hasta completar estas comprobaciones.
+Resultado de este entorno: lógica ESP32 OK; backend 24/24 OK; dashboard verificado en navegador contra el simulador (panel, video, captura, galería, dispensación con confirmación, caída del ESP32, móvil). Ambos firmwares compilan con la cadena de Espressif (`arduino-cli`, núcleo 3.0.7); la CI repite la compilación. Lista completa y distinción simulado/físico en [`docs/pruebas.md`](docs/pruebas.md).
 
 ## Documentación
 
-- [Arquitectura local](docs/arquitectura_local.md)
-- [Conexiones, riesgos y datos pendientes para el esquema USB-C](docs/conexiones_local.md)
-- [Firmware ESP32](ESP32/README.md)
-- [Firmware ESP32-CAM](ESP32_CAM/README.md)
+- [Arquitectura local y API](docs/arquitectura_local.md)
+- [Conexiones eléctricas USB-C (vigente)](docs/conexiones_usbc.md) · [notas previas](docs/conexiones_local.md)
+- [Pruebas: simuladas vs. físicas](docs/pruebas.md)
+- [Firmware ESP32](ESP32/README.md) · [Firmware ESP32-CAM](ESP32_CAM/README.md)
 - [Auditoría de integración](Documentation/auditoria_integracion_local.md)
 
 ## Solución de problemas

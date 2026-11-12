@@ -68,11 +68,23 @@ bool Dosificador::vigilar() {
   return true;
 }
 
+// Espera sin "congelar" el equipo: entre pasos se atiende la tarea de fondo.
+void Dosificador::pausa(uint32_t ms) {
+  uint32_t t0 = millis();
+  do {
+    if (tareaFondo_) tareaFondo_();
+    uint32_t trans = millis() - t0;
+    if (trans >= ms) break;
+    uint32_t resto = ms - trans;
+    delay(resto > PASO_MS ? PASO_MS : resto);
+  } while (millis() - t0 < ms);
+}
+
 bool Dosificador::esperar(uint32_t ms) {
   uint32_t t0 = millis();
   while (millis() - t0 < ms) {
     if (!vigilar()) return false;
-    delay(PASO_MS);
+    pausa(PASO_MS);
   }
   return true;
 }
@@ -91,7 +103,7 @@ bool Dosificador::rampa(uint16_t destino) {
     if (paso > PASO_US) paso = PASO_US;
     if (paso < -PASO_US) paso = -PASO_US;
     escribirPulso(pulso_ + paso);
-    delay(PASO_MS);
+    pausa(PASO_MS);
     if (!vigilar()) return false;
   }
   return true;
@@ -111,7 +123,7 @@ bool Dosificador::moverConReintentos(uint16_t destino, uint16_t anterior) {
     if (rampa(destino)) return true;
     if (sinRiel_) return false;
     rampa(anterior);
-    delay(300);
+    pausa(300);
   }
   return false;
 }
@@ -149,7 +161,7 @@ ResultadoDosis Dosificador::dosificar(uint8_t ciclos) {
 
 bool Dosificador::moverA(uint16_t pulsoUs) {
   bool ok = rampa(pulsoUs);
-  delay(300);
+  pausa(300);
   liberar();
   return ok;
 }

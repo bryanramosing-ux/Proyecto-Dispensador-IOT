@@ -9,7 +9,8 @@ class NivelTolva {
  public:
   NivelTolva(uint8_t pinTrig, uint8_t pinEcho);
   void iniciar();
-  float distanciaCm();               // < 0 si no hay eco
+  float distanciaCm();               // mide ahora; < 0 si no hay eco
+  float ultimaDistanciaCm() const { return ultima_; }  // última medición (sin volver a medir)
   float alturaPct(float distCm) const;  // 0-100 % de altura entre vacía y llena, < 0 sin lectura
   float porcentaje();                // 0-100 % del VOLUMEN, < 0 si no hay lectura válida
   bool calibrarVacia();              // guarda la distancia actual como "vacía"
@@ -21,4 +22,5 @@ class NivelTolva {
   void guardar();
   Ultrasonico sensor_;
   float vacia_, llena_;
+  float ultima_ = -1.0f;
 };

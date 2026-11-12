@@ -1,13 +1,14 @@
 # Verificación en PC (sin hardware):
 #   make            -> pruebas de la máquina de estados
-#   make sintaxis   -> compila TODO el firmware contra stubs de Arduino
+#   make sintaxis   -> compila el firmware del ESP32 contra stubs de Arduino
 #                      (requiere ArduinoJson: ARDUINOJSON=/ruta/ArduinoJson/src)
+# La ESP32-CAM usa el servidor HTTP de ESP-IDF (esp_http_server) y solo se verifica
+# con la compilación real de Espressif (arduino-cli), no contra stubs.
 CXX ?= g++
 FLAGS = -std=gnu++17 -Wall -Wextra -Wno-unused-parameter
 AJFLAGS = -DARDUINOJSON_ENABLE_PROGMEM=0 -DARDUINOJSON_ENABLE_ARDUINO_STREAM=0 -DARDUINOJSON_ENABLE_ARDUINO_PRINT=0
 ARDUINOJSON ?= ArduinoJson/src
 FW = ../Dispensador_ESP32
-CAM = ../../ESP32_CAM/Camara_ESP32CAM
 
 .PHONY: pruebas sintaxis clean
 pruebas: test_controlador
@@ -22,7 +23,6 @@ sintaxis:
 	    $(CXX) $(FLAGS) -fsyntax-only $(AJFLAGS) -DARDUINO=10819 -DESP_ARDUINO_VERSION_MAJOR=$$v -Istubs -I$(ARDUINOJSON) -I$(FW) $$f || exit 1; \
 	  done; \
 	  $(CXX) $(FLAGS) -fsyntax-only $(AJFLAGS) -DARDUINO=10819 -DESP_ARDUINO_VERSION_MAJOR=$$v -Istubs -I$(ARDUINOJSON) -I$(FW) -x c++ $(FW)/Dispensador_ESP32.ino || exit 1; \
-	  $(CXX) $(FLAGS) -fsyntax-only $(AJFLAGS) -DARDUINO=10819 -DESP_ARDUINO_VERSION_MAJOR=$$v -Istubs -I$(CAM) -x c++ $(CAM)/Camara_ESP32CAM.ino || exit 1; \
 	  echo "Nucleo Arduino-ESP32 $$v.x (API): sintaxis OK"; \
 	done
 
