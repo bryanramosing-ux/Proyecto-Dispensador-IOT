@@ -1,8 +1,8 @@
 // =============================================================================
 //  config.h  -  Configuración del ESP32 DevKit V1 (controlador del dispensador)
 // =============================================================================
-//  Montaje vigente: alimentación por USB-C (5 V), SIN panel solar, SIN batería
-//  y SIN fusible. Esquema y tablas: docs/conexiones_usbc.md
+//  Montaje vigente: fuente regulada USB-C/5 V, SIN panel solar, SIN batería,
+//  SIN fusible del diseño anterior y con un HC-SR04 activo (nivel de tolva). Esquema y tablas: docs/conexiones_usbc.md
 //
 //  Los datos de TU red (Wi-Fi, token, IP) NO van aquí: van en secrets.h
 //  (copiar secrets_ejemplo.h -> secrets.h; ese archivo no se sube a GitHub).
@@ -64,7 +64,7 @@
 
 // -----------------------------------------------------------------------------
 // 4. MODO AUTOMÁTICO OPCIONAL (segundo HC-SR04 de presencia + visión en el PC)
-//    Con el montaje USB-C de un solo HC-SR04 debe quedar en 0.
+//    En la configuración vigente (un HC-SR04 para nivel) debe quedar en 0.
 // -----------------------------------------------------------------------------
 #define USAR_DETECCION_AUTOMATICA   0
 #define DIST_MIN_CM            3.0f   // < 3 cm: sensor tapado o lectura inválida
