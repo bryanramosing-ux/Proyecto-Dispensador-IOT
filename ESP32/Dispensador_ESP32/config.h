@@ -2,7 +2,7 @@
 //  config.h  -  Configuración del ESP32 DevKit V1 (controlador del dispensador)
 // =============================================================================
 //  Montaje vigente: alimentación por USB-C (5 V), SIN panel solar, SIN batería
-//  y SIN fusible. Esquema y tablas: docs/conexiones.md
+//  y SIN fusible. Esquema y tablas: docs/conexiones_usbc.md
 //
 //  Los datos de TU red (Wi-Fi, token, IP) NO van aquí: van en secrets.h
 //  (copiar secrets_ejemplo.h -> secrets.h; ese archivo no se sube a GitHub).
@@ -16,7 +16,7 @@
 #define VERSION_FIRMWARE "2.0.0"
 
 // -----------------------------------------------------------------------------
-// 1. PINES  (auditados: ver docs/conexiones.md)
+// 1. PINES  (auditados: ver docs/conexiones_usbc.md)
 // -----------------------------------------------------------------------------
 #define PIN_TRIG_NIVEL 19 // Salida -> TRIG del HC-SR04 de la TOLVA (3,3 V es nivel alto válido)
 #define PIN_ECHO_NIVEL 21 // ECHO (5 V) del HC-SR04 por divisor 1k/2k (~3,3 V)
