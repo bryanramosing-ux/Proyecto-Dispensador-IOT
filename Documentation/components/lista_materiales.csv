@@ -1,47 +1,32 @@
-categoria,componente,cantidad,especificacion,uso,notas
-principal,ESP32 DevKit V1,1,ESP32-WROOM-32 30 pines (DOIT),Controlador y actuador,Verificar si tiene diodo entre USB y VIN
-principal,ESP32-CAM,1,AI-Thinker con OV2640 y PSRAM,Captura de imagenes,
-principal,HC-SR04,2,Version de 5 V,Deteccion de aproximacion (1) y nivel de alimento en la tolva (1),Recomendacion del profesor: el segundo va en la tapa (capsula 13b). Si es HC-SR04P puede ir a 3.3 V sin divisor
-principal,Servomotor MG995,1,Version 180 grados (NO la de giro continuo),Dosificador,Incluye horns y tornillos
-principal,Panel solar,1,~3 V 100 mA,Captacion solar demostrativa en la estacion remota (12a + 12b),Medir Voc Isc y dimensiones (PANEL_W PANEL_H en generar_stl.py)
-programacion,ESP32-CAM-MB o adaptador USB-TTL 3.3 V,1,,Cargar el firmware de la ESP32-CAM,
-auxiliar_energia,Celda Li-ion 18650,2,Marca reconocida y capacidad real,Almacenamiento,4 unidades para 2S2P (recomendado)
-auxiliar_energia,Portapilas 2x18650 en serie,1,,Montaje de las celdas,2 si se usa 2S2P
-auxiliar_energia,BMS 2S con balanceo,1,>= 5 A continuos; puerto comun,Proteccion de la bateria,
-auxiliar_energia,Cargador elevador USB-C 2S,1,Entrada 5 V; salida CC/CV 8.4 V,Carga principal,Verificar que este configurado para 2 celdas
-auxiliar_energia,Elevador MT3608,1,Ajustable; ajustar a 5.0 V,Panel -> entrada del cargador,
-auxiliar_energia,Diodo Schottky 1N5817,1,1 A 20 V,Anti-retorno del panel,
-auxiliar_energia,Convertidor reductor Buck A,1,>= 3 A continuos (p. ej. XL4015),6.0 V exclusivo del MG995,Ajustar antes de conectar
-auxiliar_energia,Convertidor reductor Buck B,1,2-3 A (p. ej. LM2596 o MP1584),5.0 V para logica,Ajustar antes de conectar
-auxiliar_energia,Fusible lento 4 A + portafusible,1,,Proteccion del cableado de bateria,
-auxiliar_energia,Interruptor basculante,1,>= 6 A; recorte 19x13 mm,Corte general,Verificar recorte del cajon
-pasivo,Resistencia 1 kOhm 1/4 W,2,,R1 y R5 divisores de los ECHO (serie),
-pasivo,Resistencia 2 kOhm 1/4 W,2,,R2 y R6 divisores de los ECHO (a GND),
-pasivo,Resistencia 330 Ohm 1/4 W,1,,R3 serie senal del servo,
-pasivo,Resistencia 10 kOhm 1/4 W,1,,R4 pull-down senal del servo,
-pasivo,Resistencia 100 kOhm 1/4 W 1%,4,,Divisores VBAT V6 y panel,
-pasivo,Resistencia 33 kOhm 1/4 W 1%,2,,Divisores VBAT y V6,
-pasivo,Condensador ceramico 100 nF,4,,3 filtros ADC en la placa de control + 1 en la ESP32-CAM,
-pasivo,Condensador electrolitico 470 uF >= 10 V,3,,Salida Buck B + placa de control + ESP32-CAM,
-pasivo,Condensador electrolitico 1000-2200 uF >= 10 V,1,,Junto al conector del MG995,
-opcional,74AHCT125,1,,Adaptador 3.3 V -> 5 V si el MG995 no responde a 3.3 V,Solo si falla la Prueba 3
-montaje,Placa perforada 90x70 mm,1,Paso 2.54 mm,Placa de control,Ver Documentation/wiring/placa_control.md
-montaje,Tira de pines hembra 1x15,2,Paso 2.54 mm,Zocalo del ESP32,
-montaje,Conector JST-XH 2 pines (macho + hembra con cable),2,,J1 y J3,
-montaje,Conector JST-XH 4 pines (macho + hembra con cable),3,,J2 J4 y J5,
-montaje,Conector GX12 2 pines (macho aereo + hembra de panel),1,Rosca 12 mm,Estacion solar remota -> tapa trasera del cajon 16,Pin 1 = + (rojo) pin 2 = - (negro)
-montaje,Cable bipolar de exterior AWG 20-22,1,3-5 m segun donde haya sol,Panel -> GX12,Caida calculada ~0.05 V con 5 m
-montaje,Cable de 4 hilos (apantallado opcional) AWG 24-26,1,~1.2 m,HC-SR04 de la tolva -> J5,Por la ranura de la tapa y el conducto de la esquina; 20 cm flojos
-montaje,Conector XT30 o JST-VH (par),2,,Potencia entre modulos (6 V y 5 V),
-montaje,Cable AWG 20,1,~1 m rojo + 1 m negro,Bateria y servo,
-montaje,Cable AWG 22-26,1,~4 m surtido de colores,Senales y 5 V,
-montaje,Tornillo M3x10 (rosca en plastico),30,26 + 4 de repuesto,Uniones de modulos tapas pods bandeja viga pico y cajon,Ver Documentation/manual_armado
-montaje,Tornillo M3x12,6,,Union base-cuerpo (4) y tapa de la capsula del sensor de nivel (2),
-montaje,Tuerca M3,12,8 + 4 de repuesto,Pods y bandeja del ESP32,
-montaje,Tornillo M4x12 (cabeza moleteada o mariposa ideal),2,,Pivote de la estacion solar,
-montaje,Tuerca M4 + arandela M4,2,,Pivote de la estacion solar (tuerca alojada en 12b),
-montaje,Bridas plasticas 2.5 mm,6,,Cables (alivio de tension en la estacion solar),
-montaje,Cinta doble faz de espuma (VHB) de exterior,1,~20 cm,Panel en la bandeja 12b y modulos sin agujeros,
-montaje,Silicona neutra o termofusible,1,,Fijar el HC-SR04 de la tolva en su capsula,
-impresion,Filamento PETG apto para alimentos,1.5,kg,Piezas en contacto con el alimento + tapa + estacion solar + 06 y 16,~1.25 kg laminado (Mechanical/plan_impresion.md) + reserva
-impresion,Filamento PLA,1.2,kg,Estructura y capsulas de la torre,~1.0 kg laminado + reserva (Elegoo Neptune 4 Plus)
+categoria,componente,cantidad,especificacion,uso,estado_notas
+control,ESP32 DevKit V1,1,"ESP32-WROOM-32; verificar variante y pinout","Control principal; sensores; servo; Wi-Fi","Necesario; confirmar modelo exacto"
+vision,ESP32-CAM AI-Thinker,1,"OV2640 + PSRAM; confirmar variante","Captura y stream MJPEG por Wi-Fi","Necesaria para firmware actual; no sustituir por cámara 5110V0 sin rediseño"
+sensor,HC-SR04,1,"Módulo ultrasónico 5 V","Medición del nivel de alimento en la tolva","Necesario; detección automática de presencia desactivada"
+actuacion,Servomotor MG995,1,"Versión posicional 180 grados; no giro continuo","Acciona el disco dosificador","Necesario; comprobar corriente, mecánica y calibración"
+alimentacion,Fuente regulada 5 V,1,"Recomendación inicial 5 A continuos; salida estable y protección contra sobrecorriente","Alimenta lógica, cámara y rama del servo","Necesaria; verificar etiqueta y capacidad real; no usar USB del PC para todo el conjunto"
+alimentacion,Cable USB-C de potencia,1,"Adecuado para la corriente real de la fuente","Entrada de alimentación","Necesario; no asumir que cualquier cable soporta 5 A"
+programacion,Cable USB de datos,1,"Compatible con conector de placa ESP32","Programación y monitor serie","Necesario; distinguir cable de datos de cable solo carga"
+programacion,Programador ESP32-CAM,1,"ESP32-CAM-MB o USB-TTL con UART de 3.3 V","Cargar firmware ESP32-CAM","Necesario si no se dispone de programador integrado"
+pasivo,Resistencia 1 kOhm,1,"1/4 W","Divisor ECHO HC-SR04","Necesaria"
+pasivo,Resistencia 2 kOhm,1,"1/4 W","Divisor ECHO HC-SR04","Necesaria"
+pasivo,Resistencia 330 Ohm,1,"1/4 W","Serie señal PWM MG995","Según configuración del firmware"
+pasivo,Resistencia 10 kOhm,1,"1/4 W","Pull-down señal MG995 a GND","Según configuración del firmware"
+pasivo,Condensador electrolítico,1,"1000 a 2200 uF; tensión nominal >= 10 V","Cerca alimentación MG995","Recomendado; respetar polaridad"
+pasivo,Condensador electrolítico,1,"470 uF; tensión nominal >= 10 V","Cerca alimentación ESP32-CAM","Recomendado"
+pasivo,Condensador cerámico,1,"100 nF","Desacoplo ESP32-CAM","Recomendado"
+montaje,Protoboard o placa distribución,1,"Solo señales; no conducir corriente del servo por pistas finas","Distribución de señales y GND","Por confirmar"
+montaje,Cables Dupont,1,"Macho-hembra y macho-macho","Señales de sensores y GPIO","Según conectores"
+montaje,Cable potencia,1,"AWG 20 recomendado para rama corta del servo","Fuente a MG995 y retorno GND","Necesario; dimensionar según longitud/corriente"
+montaje,Conectores y terminales,1,"Adecuados a corriente y calibre","Conexiones firmes y aisladas","Necesarios"
+montaje,Multímetro,1,"Medición de tensión y continuidad","Comprobar polaridad, cortos y caída de tensión","Herramienta necesaria"
+mecanica,Estructura impresa 3D,1,"Piezas vigentes de Mechanical/STL; omitir estación solar","Tolva, soporte, carcasa y conducto","Imprimir solo piezas necesarias para versión sin energía solar"
+mecanica,Tornillería M3 y M4,1,"Según encajes reales de STL","Unión de piezas y soporte MG995","Confirmar cantidades con plan actualizado"
+excluido,Panel solar,0,"No se utiliza","—","NO comprar ni instalar"
+excluido,Baterías 18650,0,"No se utilizan","—","NO comprar ni instalar"
+excluido,BMS 2S y cargador 2S,0,"No se utilizan","—","NO comprar ni instalar"
+excluido,MT3608 y buck del diseño solar,0,"No forman parte del montaje USB-C simplificado","—","NO comprar salvo rediseño documentado"
+excluido,Fusible 4 A del diseño anterior,0,"No se instala en la versión solicitada","—","La exclusión no elimina el riesgo; usar fuente protegida y pruebas supervisadas"
+excluido,RC522 RFID y etiquetas NFC,0,"No se utilizan","—","NO comprar ni instalar"
+excluido,Sensor PIR,0,"No se utiliza","—","NO comprar ni instalar"
+excluido,Segundo HC-SR04 de presencia,0,"Detección automática desactivada en config.h","—","NO comprar para configuración actual"
+pendiente,Cámara 5110V0 de la fotografía,0,"Modelo/interfaz aún no confirmados","No conectar hasta identificarla","No sustituye automáticamente la ESP32-CAM"

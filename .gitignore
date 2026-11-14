@@ -1,16 +1,22 @@
-# Credenciales Wi-Fi (copiar secrets_ejemplo.h -> secrets.h)
-**/secrets.h
+# Propiedades del proyecto local
 
-# Modelo (se descarga con OpenCV/descargar_modelo.py)
-OpenCV/model/*.onnx
-OpenCV/model/imagenet_classes.txt
-OpenCV/capturas/
-OpenCV/dataset/
-OpenCV/imagenes_prueba/
+# backend
+backend/storage/
+backend/__pycache__/
+
+# frontend build output
+frontend/.DS_Store
+
+# python
 __pycache__/
 *.pyc
 
-# Compilación
-.pio/
+# local screenshots and captures
+**/*.jpg
+**/*.jpeg
+
+# binarios de pruebas locales
 ESP32/test_host/test_controlador
 ESP32/test_host/ArduinoJson/
+.venv/
+*.db
