@@ -12,6 +12,8 @@ Proyecto universitario para controlar y supervisar un dispensador de alimento me
 - **Dashboard:** panel, cámara (video + captura manual/automática), galería (ver, descargar, eliminar con confirmación), control con confirmación e historial. Muestra *desconectado* en lugar de datos viejos.
 - Credenciales y token se configuran en archivos locales que no se suben a GitHub.
 
+> **Alcance funcional de esta rama:** el dashboard permite supervisar la telemetría, ver el flujo/capturar fotos y solicitar una dispensación manual confirmada. Esta rama **no integra el clasificador OpenCV perro/gato** del diseño anterior; tampoco activa la detección automática de presencia (`USAR_DETECCION_AUTOMATICA=0`). El sensor de nivel sí está contemplado. Por tanto, no debe presentarse como identificación automática de mascotas ni como dispensación autónoma por visión hasta integrar y probar ese flujo.
+
 ## Arquitectura
 
 ```text
@@ -25,7 +27,7 @@ Sin Internet ni cloud. El dashboard se abre en `http://<IP-LAN-del-PC>:8001` (`l
 
 ## Componentes y exclusiones
 
-ESP32 DevKit V1, ESP32-CAM AI-Thinker, servo MG995, HC-SR04 (nivel de tolva; presencia opcional), adaptador USB-C de 5 V ≥ 3 A, cable USB-C, protoboard/Dupont. **No forman parte del diseño:** panel solar, fusible, RC522, NFC.
+ESP32 DevKit V1, ESP32-CAM AI-Thinker, servo MG995, HC-SR04 (nivel de tolva; segundo HC-SR04 para presencia solo si se habilita el modo automático), adaptador USB-C de 5 V ≥ 3 A, cable USB-C, protoboard/Dupont. **No forman parte del diseño:** panel solar, fusible, RC522, NFC.
 
 ### Advertencia eléctrica
 
