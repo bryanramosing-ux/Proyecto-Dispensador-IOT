@@ -140,6 +140,7 @@ Revisar [docs/pruebas.md](docs/pruebas.md). Antes de conectar alimento o permiti
 - [Lista de materiales vigente](Documentation/components/lista_materiales.csv)
 - [Manual de montaje USB-C](Documentation/manual_armado/Manual_de_Armado.md)
 - [Conexiones eléctricas USB-C](docs/conexiones_usbc.md)
+- [Manual de instrucciones de conexiones (Markdown)](docs/manual_instrucciones_conexiones.md)
 - [Arquitectura local y API](docs/arquitectura_local.md)
 - [Pruebas y validación](docs/pruebas.md)
 - [Firmware ESP32](ESP32/README.md)
