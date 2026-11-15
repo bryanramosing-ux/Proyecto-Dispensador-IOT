@@ -1,0 +1,14 @@
+[Unit]
+Description=Visión del dispensador IoT
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+WorkingDirectory=/RUTA/AL/REPOSITORIO/OpenCV
+ExecStart=/RUTA/AL/REPOSITORIO/OpenCV/.venv/bin/python -u /RUTA/AL/REPOSITORIO/OpenCV/iniciar.py
+Restart=on-failure
+RestartSec=5
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=default.target

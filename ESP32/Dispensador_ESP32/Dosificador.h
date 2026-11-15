@@ -8,6 +8,7 @@
 class Dosificador {
  public:
   Dosificador(uint8_t pin, Energia& energia, bool vigilarRiel);
+  bool preparado() const { return inicializado_; }
   bool iniciar();                       // configura LEDC y lleva el disco a CERRADO
   ResultadoDosis dosificar(uint8_t ciclos);
   // Para calibración: mueve a un pulso (limitado a PULSO_MIN_US..PULSO_MAX_US)
@@ -29,6 +30,7 @@ class Dosificador {
   bool vigilarRiel_;
   uint16_t pulso_ = 0;
   bool activo_ = false;
+  bool inicializado_ = false;
   bool atasco_ = false;
   bool sinRiel_ = false;
   uint32_t tInicioCaida_ = 0;

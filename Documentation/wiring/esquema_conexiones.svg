@@ -126,8 +126,8 @@
 <use href="#gnd" x="330" y="352"/>
 <path d="M330,345 L330,352" class="gnd"/>
 <rect x="400" y="880" width="205" height="60" rx="6" class="aux"/>
-<text x="502.5" y="900" class="t" text-anchor="middle" >Buck A → 6,0 V servo</text>
-<text x="502.5" y="918" class="s" text-anchor="middle" >≥3 A (XL4015) · solo el MG995</text>
+<text x="502.5" y="900" class="t" text-anchor="middle" >Buck-boost A → 6,0 V</text>
+<text x="502.5" y="918" class="s" text-anchor="middle" >Vin 6–8,4 V · ≥3 A</text>
 <rect x="400" y="980" width="205" height="60" rx="6" class="aux"/>
 <text x="502.5" y="1000" class="t" text-anchor="middle" >Buck B → 5,0 V lógica</text>
 <text x="502.5" y="1018" class="s" text-anchor="middle" >2–3 A · 470 µF a la salida</text>

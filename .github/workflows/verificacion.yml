@@ -55,7 +55,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Máquina de estados (26 escenarios, con alertas de nivel y fotos cada 2 s)
+      - name: Controlador, dosificador y persistencia (regresiones de reinicio, PWM y NVS)
         run: make -C ESP32/test_host
       - name: Placa de control coherente con config.h (pines, divisores, conexiones)
         run: python3 Documentation/wiring/generar_placa_control.py
@@ -100,7 +100,7 @@ jobs:
           arduino-cli core install "esp32:esp32@2.0.17" --additional-urls "$INDICE_ESP32"
           arduino-cli lib install "ArduinoJson@7.4.2"
           arduino-cli compile --fqbn esp32:esp32:esp32doit-devkit-v1 --build-path build/qemu \
-            --build-property "compiler.cpp.extra_flags=-DSIMULACION_QEMU" ESP32/Dispensador_ESP32
+            --build-property "compiler.cpp.extra_flags=-DSIMULACION_QEMU -DMODO_FERIA=1" ESP32/Dispensador_ESP32
       - name: Descargar QEMU de Espressif
         run: |
           curl -sSL -o qemu.tar.xz https://github.com/espressif/qemu/releases/download/esp-develop-9.0.0-20240606/qemu-xtensa-softmmu-esp_develop_9.0.0_20240606-x86_64-linux-gnu.tar.xz

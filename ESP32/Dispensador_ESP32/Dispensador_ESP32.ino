@@ -20,6 +20,7 @@
 #include <WiFi.h>
 
 #include "Controlador.h"
+#include "HistorialNVS.h"
 #include "Dosificador.h"
 #include "Energia.h"
 #include "NivelGeometria.h"
@@ -58,6 +59,13 @@ class HardwareReal : public Hardware {
   float voltajeServo() override { return energia.servo(); }
   float nivelTolvaPct() override { return USAR_SENSOR_NIVEL ? nivel.porcentaje() : -1.0f; }
   bool notificar(Alerta a, float n) override { return red.notificar(nombreAlerta(a), n); }
+  bool servoPreparado() override { return dosificador.preparado(); }
+  bool cargarRaciones(uint8_t* cuentas, uint32_t* totales, uint8_t clases) override {
+    return HistorialNVS::cargar(cuentas, totales, clases);
+  }
+  bool guardarRaciones(const uint8_t* cuentas, const uint32_t* totales, uint8_t clases) override {
+    return HistorialNVS::guardar(cuentas, totales, clases);
+  }
   ResultadoDosis dosificar(uint8_t ciclos) override {
     digitalWrite(PIN_LED, HIGH);
     ResultadoDosis r = dosificador.dosificar(ciclos);
@@ -221,6 +229,10 @@ void procesarComando(String linea) {
       Serial.printf("Servo -> %ld us %s\n", arg, ok ? "OK" : "(caida de tension detectada)");
     }
   } else if (cmd == "CICLO") {
+    if (!MODO_FERIA) {
+      Serial.println(F("CICLO solo en MODO_FERIA de calibracion (no usar con mascotas)"));
+      return;
+    }
     if (arg < 1 || arg > MAX_CICLOS_POR_RACION) arg = 1;
     uint32_t t0 = millis();
     ResultadoDosis r = dosificador.dosificar((uint8_t)arg);

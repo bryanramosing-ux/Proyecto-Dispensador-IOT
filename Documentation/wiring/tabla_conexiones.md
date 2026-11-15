@@ -1,3 +1,5 @@
+> Alimentación corregida: A debe ser buck-boost de 6 V ≥3 A y B un buck de bajo dropout de 5 V ≥2 A, ambos garantizados para Vin 6,0–8,4 V. XL4015 no cubre este rango (mínimo 8 V). Ver [calibración y puesta en marcha](../calibration/calibracion.md).
+
 # Tabla de conexiones punto a punto
 
 Complementa al [esquema completo](esquema_conexiones.svg) (generado por `generar_esquema.py`, que lee los GPIO

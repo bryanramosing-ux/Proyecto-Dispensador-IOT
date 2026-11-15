@@ -77,6 +77,11 @@ Ajustar `UMBRAL_CONFIANZA`, `MARGEN_MINIMO`, `BRILLO_*` y `NITIDEZ_MIN` en `conf
 
 ## Limitaciones honestas
 
+Guía completa: [instalación y calibración](../Documentation/calibration/calibracion.md).
+El launcher `python iniciar.py` permite configuración local en `dispensador.env`;
+`python comprobar_instalacion.py --red` comprueba el modelo y consulta `/status`
+sin mover el motor. Ver [arranque continuo](../Documentation/operacion/README.md).
+
 * El modelo reconoce **perro o gato en general**, no a una mascota concreta.
 * Una foto de un perro en un celular o un peluche realista puede clasificarse como perro.
 * Zorros, lobos o felinos grandes pueden dar probabilidades altas en clases cercanas; los umbrales y el margen reducen el riesgo, no lo eliminan.

@@ -10,8 +10,17 @@ FW = ../Dispensador_ESP32
 CAM = ../../ESP32_CAM/Camara_ESP32CAM
 
 .PHONY: pruebas sintaxis clean
-pruebas: test_controlador
+pruebas: test_controlador test_dosificador_2 test_dosificador_3 test_historial
 	./test_controlador
+	./test_dosificador_2
+	./test_dosificador_3
+	./test_historial
+
+test_dosificador_%: test_dosificador.cpp $(FW)/Dosificador.cpp $(FW)/Dosificador.h $(FW)/config.h
+	$(CXX) $(FLAGS) -O1 -DESP_ARDUINO_VERSION_MAJOR=$* -Istubs -o $@ test_dosificador.cpp $(FW)/Dosificador.cpp
+
+test_historial: test_historial.cpp $(FW)/HistorialNVS.h stubs/Preferences.h
+	$(CXX) $(FLAGS) -O1 -Istubs -o $@ test_historial.cpp
 
 test_controlador: test_controlador.cpp $(FW)/Controlador.cpp $(FW)/Controlador.h $(FW)/NivelGeometria.h
 	$(CXX) $(FLAGS) -O1 -o $@ test_controlador.cpp $(FW)/Controlador.cpp
@@ -27,4 +36,4 @@ sintaxis:
 	done
 
 clean:
-	rm -f test_controlador
+	rm -f test_controlador test_dosificador_2 test_dosificador_3 test_historial

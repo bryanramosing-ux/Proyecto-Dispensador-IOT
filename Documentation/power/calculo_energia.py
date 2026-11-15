@@ -40,6 +40,7 @@ def main():
     ap.add_argument("--horas-sol", type=float, default=4.0, help="horas solares pico del lugar")
     ap.add_argument("--eficiencia-solar", type=float, default=0.60,
                     help="elevador + cargador + desajuste sin MPPT (SUPUESTO)")
+    ap.add_argument("--pc-w", type=float, default=0.0, help="potencia media medida del PC de vision; alimentacion aparte")
     a = ap.parse_args()
 
     p_esp, p_cam, p_hc, p_hc2 = 5 * a.i_esp32, 5 * a.i_cam, 5 * a.i_hc, 5 * a.i_hc_nivel
@@ -47,6 +48,7 @@ def main():
     e_logica_dia = p_logica * 24 / a.eficiencia_dcdc
     e_servo_dia = 6 * a.i_servo_mov * a.t_ciclo * a.ciclos_racion * a.raciones_dia / 3600 / a.eficiencia_dcdc
     e_dia = e_logica_dia + e_servo_dia
+    e_pc = a.pc_w * 24
     p_media = e_dia / 24
 
     e_bat = 7.4 * a.celda_mah / 1000 * a.paralelo
@@ -66,6 +68,10 @@ def main():
     print(f"  Lógica total (5 V) ... {p_logica:5.2f} W  -> {e_logica_dia:5.1f} Wh/día con pérdidas DC-DC")
     print(f"  MG995 ................ {e_servo_dia:5.2f} Wh/día ({a.raciones_dia} raciones x {a.ciclos_racion} ciclos)")
     print(f"  TOTAL ................ {e_dia:5.1f} Wh/día  (potencia media {p_media:4.2f} W)")
+    print(f"  PC de visión (alimentación aparte): {e_pc:.1f} Wh/día ({a.pc_w:.1f} W)")
+    if not a.pc_w:
+        print("  PC NO INCLUIDO: mida su consumo y use --pc-w para el balance completo.")
+    print(f"  Sistema con PC: {e_dia + e_pc:.1f} Wh/día")
     print("\nPICOS DE CORRIENTE")
     print(f"  Riel 5 V ............. {pico_5v:4.2f} A  (convertidor >= 2 A)")
     print(f"  Riel 6 V (bloqueo) ... {pico_6v:4.2f} A  (convertidor >= 3 A)")
@@ -83,8 +89,12 @@ def main():
     print(f"  Cable a la estación remota ({a.cable_panel_m:.0f} m, ida y vuelta): caída {caida:4.2f} V a "
           f"{i_panel * 1000:.0f} mA = {100 * caida / 3.0:3.1f} % de 3 V (despreciable)")
     necesario = e_dia / (a.horas_sol * 0.75)
-    print(f"  Panel necesario para autonomía solar: ~{necesario:4.1f} W (con MPPT ~75 %) + batería para 2 días "
+    print(f"  Panel necesario SOLO para el dispensador: ~{necesario:4.1f} W (con MPPT ~75 %) + batería para 2 días "
           f"(~{2 * e_dia:4.0f} Wh)")
+
+    if a.pc_w:
+        print(f"  Con el PC: panel ~{(e_dia + e_pc) / (a.horas_sol * 0.75):.1f} W y "
+              f"batería útil para 2 días ~{2 * (e_dia + e_pc):.0f} Wh (dimensionar también la conversión del PC).")
 
 
 if __name__ == "__main__":

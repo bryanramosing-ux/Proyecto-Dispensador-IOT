@@ -45,6 +45,9 @@ pruebas.
 
 ---
 
+> Puesta en marcha y correcciones de funcionamiento: [guía de instalación y calibración](Documentation/calibration/calibracion.md).
+> El historial se guarda antes de mover el motor; sin reloj RTC, al reiniciar se conservan las cuentas y se renuevan conservadoramente los plazos desde el arranque.
+
 ## 1. Resumen ejecutivo
 
 El dispensador es una **torre modular de ≈ 49 cm** impresa en 3D. Cuando una mascota se acerca, el **HC-SR04**
@@ -80,7 +83,7 @@ Actions, `.github/workflows/verificacion.yml`):
 * **Firmware del ESP32 ejecutado en el emulador QEMU de Espressif**: arranca, entra en la máquina de estados y
   responde a todos los comandos, incluido `NIVEL` (autoprueba de 14 puntos). El emulador encontró un error real que se
   corrigió (el botón BOOT mantenido borraba errores cada 50 ms).
-* 26 escenarios de la máquina de estados en PC (5 del sensor de nivel; 2 de las fotos cada 2 s: ritmo, máximo de 5
+* 32 escenarios de la máquina de estados en PC (5 del sensor de nivel; 2 de las fotos cada 2 s: ritmo, máximo de 5
   y que no se repita la consulta a la cámara); 29 pruebas del servicio de visión (extremo a extremo por HTTP, fotos de
   una misma visita, alertas, panel web y reenvío al celular); **modelo real** sobre 25 imágenes públicas: 9/9 perros, 5/5 gatos y 0
   errores peligrosos con 11 animales parecidos (lobo, coyote, dingo, zorros, hiena, puma, lince, tigre, guepardo) y un peluche.
@@ -138,8 +141,8 @@ eléctricamente posible; ver §16 y §21):
 | Cargador elevador USB-C 5 V → 2S (8,4 V CC/CV) | 1 | Carga principal desde un cargador USB |
 | Elevador MT3608 (ajustable) | 1 | Eleva los ≈ 3 V del panel a 5 V para la entrada del cargador |
 | Diodo Schottky 1N5817 | 1 | Evita que el circuito descargue hacia el panel |
-| Convertidor reductor **Buck A** ≥ 3 A (p. ej. módulo XL4015) | 1 | 6,0 V **exclusivo** del MG995 |
-| Convertidor reductor **Buck B** 2–3 A (p. ej. LM2596 o MP1584) | 1 | 5,0 V para ESP32, ESP32-CAM y HC-SR04 |
+| Convertidor **buck-boost A** ≥ 3 A, entrada garantizada 6,0–8,4 V | 1 | 6,0 V **exclusivo** del MG995 |
+| Convertidor **Buck B de bajo dropout** 2–3 A, entrada garantizada 6,0–8,4 V | 1 | 5,0 V para ESP32, ESP32-CAM y HC-SR04 |
 | Fusible 4 A lento + portafusible | 1 | Protección del cableado de batería |
 | Interruptor basculante (≥ 6 A) | 1 | Corte general |
 
@@ -312,7 +315,7 @@ sin eco** (aviso, no bloquea) y **PC que no recibe la alerta** (reenvío cada 30
 | `Dispensador_ESP32.ino` | Une los módulos (`HardwareReal`), lazo de 50 ms, comandos serie, LED | GPIO2, GPIO0 |
 
 * **Patrón:** la máquina de estados depende de una interfaz abstracta `Hardware`; en el ESP32 la implementa
-  `HardwareReal` y en las pruebas de PC un `FakeHW`. Así se probaron 26 escenarios sin placa.
+  `HardwareReal` y en las pruebas de PC un `FakeHW`. Así se probaron 32 escenarios sin placa.
 * **Sin bloqueos largos:** el lazo corre cada 50 ms; las únicas esperas largas son la petición HTTP (máx. 10 s,
   con timeout) y la dosis (el servo debe completar el ciclo).
 
@@ -875,7 +878,7 @@ multiplicar por ≈ 126 cm³. Detalle en el [manual de armado](Documentation/man
 
 ### 23.7 Tiempo entre dispensaciones
 `COOLDOWN_*` y `MAX_RACIONES_DIA_*` son **política de uso**: `MODO_FERIA 1` (30 s / 60 s) para demostrar,
-`MODO_FERIA 0` con los valores que defina el dueño.
+`MODO_FERIA 0` (valor predeterminado) con los valores que defina el dueño.
 
 ## 24. Máquina de estados
 
@@ -1304,7 +1307,7 @@ cd OpenCV && python -m unittest discover -s tests -v      # 29 pruebas (la del m
 cd OpenCV && python medir_red.py --clasificar             # tiempos de la red local (con el hardware encendido)
 python tests/descargar_imagenes_prueba.py imagenes_prueba && \
   DISPENSADOR_IMAGENES_PRUEBA=imagenes_prueba python -m unittest tests.test_modelo_real -v   # 25 imágenes, 0 peligrosas
-cd ESP32/test_host && make                                # 26 escenarios de la máquina de estados
+cd ESP32/test_host && make                                # 32 escenarios de la máquina de estados
 cd ESP32/test_host && make sintaxis                       # compilación rápida contra stubs (API 2.x y 3.x)
 arduino-cli compile --fqbn esp32:esp32:esp32doit-devkit-v1 ESP32/Dispensador_ESP32           # compilación real
 arduino-cli compile --fqbn esp32:esp32:esp32cam:PartitionScheme=huge_app ESP32_CAM/Camara_ESP32CAM
@@ -1385,7 +1388,7 @@ python Documentation/wiring/generar_esquema.py            # esquema completo des
 - [ ] Router/punto de acceso 2,4 GHz y las tres IP verificadas
 - [ ] `servidor_vision.py` corriendo, puerto 8000 permitido
 - [ ] Umbrales calibrados con la iluminación del lugar
-- [ ] `MODO_FERIA 1` y cooldown adecuados
+- [ ] `MODO_FERIA 0` para uso doméstico; modo 1 solo para calibración supervisada
 - [ ] Batería cargada (VBAT ≥ 8,0 V) y comedero limpio
 - [ ] Estación solar al sol (o junto a una ventana) con el GX12 enchufado
 - [ ] Panel web del PC abierto (`http://IP-DEL-PC:8000/`) para mostrar el nivel y las alertas
@@ -1408,7 +1411,7 @@ Leyenda: ✅ verificado en este repositorio · 🔧 verificado en diseño, **pen
 - ✅ No existen conexiones potencialmente peligrosas en el esquema (fusible, BMS, interruptor, divisores en origen).
 
 **SOFTWARE**
-- ✅ ESP32 controla el sistema y toma la decisión final (26 escenarios probados en PC, 5 del sensor de nivel y 2 de
+- ✅ ESP32 controla el sistema y toma la decisión final (32 escenarios probados en PC, 5 del sensor de nivel y 2 de
   las fotos cada 2 s).
 - ✅ Fotos en vez de video: la cámara en modo foto no captura de forma continua; una foto cada ~2 s solo con la
   mascota delante (máx. 5) y las fotos de la visita se combinan (probado con visitas simuladas en el PC).
@@ -1445,7 +1448,7 @@ Leyenda: ✅ verificado en este repositorio · 🔧 verificado en diseño, **pen
 - ✅ Potencia calculada (1,75 W medios; picos 0,59 A en 5 V, 2,5 A en 6 V, 3,3 A en batería).
 - ✅ Consumo analizado (42,0 Wh/día, incluye el segundo HC-SR04) con script reproducible. 🔧 Medir consumos reales.
 - ✅ Almacenamiento analizado (2S1P ≈ 8,5 h; 2S2P ≈ 17 h).
-- ✅ Regulación analizada (Buck 6,0 V y 5,0 V; caída de tensión en batería baja dentro del rango del MG995).
+- 🔧 Regulación especificada para TODO el rango de batería: buck-boost 6,0 V ≥3 A y buck de bajo dropout 5,0 V ≥2 A. Debe verificarse con carga; XL4015 (entrada mínima 8 V) no cubre una batería 2S descargada.
 - ✅ MG995 no depende directamente del GPIO.
 - ✅ No existen afirmaciones físicamente imposibles: el panel **no** alimenta el sistema; se explica cuánto aporta y qué haría falta.
 
