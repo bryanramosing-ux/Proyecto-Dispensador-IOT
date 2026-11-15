@@ -31,7 +31,7 @@ La cámara marcada por el usuario como “5110V0” aún no está identificada. 
 - **Backend:** recibe telemetría, guarda historial y fotografías, expone API local, reenvía comandos autorizados y sirve eventos SSE.
 - **Dashboard:** muestra estado, nivel, cámara, galería, historial y control manual confirmado.
 
-**Funciones no activas en esta rama:** detección automática de presencia (`USAR_DETECCION_AUTOMATICA=0)) y clasificación automática perro/gato con OpenCV. Aunque existe código de OpenCV y configuración histórica en `OpenCV/`, no forma parte del flujo de ejecución activo del dashboard/firmware de esta rama. No presentar el prototipo como identificador automático de mascotas ni como dispensador autónomo por visión.
+**Funciones no activas en esta rama:** detección automática de presencia (``USAR_DETECCION_AUTOMATICA=0` y clasificación automática perro/gato con OpenCV. Aunque existe código de OpenCV y configuración histórica en `OpenCV/`, no forma parte del flujo de ejecución activo del dashboard/firmware de esta rama. No presentar el prototipo como identificador automático de mascotas ni como dispensador autónomo por visión.
 
 ## 3. Arquitectura
 
@@ -50,11 +50,11 @@ Detalles: [docs/arquitectura_local.md](docs/arquitectura_local.md).
 
 ## 4. Alimentación y seguridad eléctrica
 
-La versión actual elimina el subsistema solar y de batería. La documentación eléctrica vigente es [docs/conexiones_usbc.md](docs/conexiones_usbc.md) y el manual de montaje vigente es [Documentation/manual_armado/Manual_de_Armado.md](Documentation/manual_armado/Manual_de_Armado.md).
+La versión actual elimina el subsistema solar y de batería. **Decisión de alcance:** se conserva un único HC-SR04 activo para nivel de tolva. La detección automática de presencia no se habilita sin un cambio explícito de requisitos, cableado y pruebas. La arquitectura eléctrica de referencia para las pruebas de laboratorio es [docs/manual_instrucciones_conexiones.md](docs/manual_instrucciones_conexiones.md). Los documentos [docs/conexiones_usbc.md](docs/conexiones_usbc.md) y [Documentation/manual_armado/Manual_de_Armado.md](Documentation/manual_armado/Manual_de_Armado.md) deben leerse conforme a esa arquitectura y no como permiso para unir fuentes de 5 V.
 
 Puntos obligatorios:
 
-1. No alimentar el conjunto desde un puerto USB de computador con el MG995 conectado.
+1. El USB del PC alimenta únicamente el ESP32 DevKit y, si se verifica su capacidad, el HC-SR04. El MG995 y la ESP32-CAM utilizan la fuente externa de 5 V; jamás alimentar el servo desde el puerto USB del PC.
 2. Usar una fuente regulada de 5 V con capacidad suficiente y protección contra sobrecorriente. La recomendación inicial de 5 A debe cotejarse con la fuente y las corrientes reales del servo/cámara.
 3. Alimentar el MG995 por una rama de potencia adecuada; nunca desde GPIO ni desde el regulador de la placa ESP32.
 4. Mantener GND común entre servo, ESP32, cámara y sensor.

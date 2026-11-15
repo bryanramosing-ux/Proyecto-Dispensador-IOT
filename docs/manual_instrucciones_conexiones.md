@@ -177,7 +177,7 @@ No la utilices para transportar la corriente de alimentación del MG995. Usa una
 
 ## 12. Relación con el resto del repositorio
 
-Este documento complementa, pero no reemplaza, la documentación específica de firmware y arquitectura:
+Este documento define la arquitectura eléctrica de referencia del laboratorio y prevalece sobre descripciones antiguas de una fuente única. No constituye validación física. Complementa la documentación específica de firmware y arquitectura:
 
 - [README principal](../README.md)
 - [Conexiones eléctricas vigentes](conexiones_usbc.md)

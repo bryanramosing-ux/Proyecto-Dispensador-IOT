@@ -34,3 +34,10 @@ ESP32/test_host/ArduinoJson/
 
 # Archivos generados por PlatformIO
 .pio/
+
+# Credenciales locales de placas y backend (nunca versionar)
+ESP32/Dispensador_ESP32/secrets.h
+ESP32_CAM/Camara_ESP32CAM/secrets.h
+backend/.env
+backend/.env.*
+!backend/.env.example
