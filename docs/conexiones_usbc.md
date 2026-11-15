@@ -6,21 +6,21 @@
 
 - ESP32 DevKit V1.
 - ESP32-CAM AI-Thinker con OV2640/PSRAM.
-- Un HC-SR04 para nivel de tolva.
+- Dos HC-SR04: nivel de tolva y presencia de mascota.
 - MG995 posicional de 180°.
 - Fuente regulada de 5 V; recomendación inicial 5 A continuos y protección contra sobrecorriente.
-- Cable USB-C y distribución de potencia adecuada.
-- Resistencias 1 kΩ y 2 kΩ para ECHO; 330 Ω serie para señal servo; 10 kΩ pull-down.
+- Cable USB compatible con el conector real del DevKit (micro-USB en la placa fotografiada) y distribución de potencia adecuada.
+- Dos resistencias de 1 kΩ y dos de 2 kΩ para divisores ECHO independientes; 330 Ω serie para señal servo; 10 kΩ pull-down.
 - 1000–2200 µF junto al servo; 470 µF + 100 nF junto a ESP32-CAM.
 
-Excluidos: panel solar, baterías 18650, BMS, cargador 2S, MT3608, convertidores buck del diseño solar, fusible del esquema anterior, RC522/NFC, PIR y segundo HC-SR04 de presencia.
+Excluidos: panel solar, baterías 18650, BMS, cargador 2S, MT3608, convertidores buck del diseño solar, fusible del esquema anterior, RC522/NFC, PIR; el HC-SR04 de presencia está incluido.
 
 ## 2. Distribución propuesta
 
-**Arquitectura de laboratorio seleccionada:** el PC alimenta por USB únicamente al ESP32 DevKit y, previa comprobación, al HC-SR04. La fuente regulada externa de 5 V alimenta exclusivamente la ESP32-CAM y el MG995 en ramas separadas. Ambas alimentaciones comparten GND, pero sus positivos NO se unen. La corriente del servo no debe circular por pistas de protoboard ni por el regulador de la placa.
+**Arquitectura de laboratorio seleccionada:** el PC alimenta por USB únicamente al ESP32 DevKit y, previa comprobación, a ambos HC-SR04. La fuente regulada externa de 5 V alimenta exclusivamente la ESP32-CAM y el MG995 en ramas separadas. Ambas alimentaciones comparten GND, pero sus positivos NO se unen. La corriente del servo no debe circular por pistas de protoboard ni por el regulador de la placa.
 
 ```text
-PC USB ─── ESP32 DevKit ─── HC-SR04 (5 V, si está verificado)
+PC USB ─── ESP32 DevKit ─── 2 HC-SR04 (5 V, si está verificado)
                 │ GPIO25 (señal PWM)
                 └── GND común ──────────────────────────┐
                                                        │
@@ -40,11 +40,12 @@ La recomendación de 5 A es un margen inicial, no una garantía: confirme la cor
 |---|---|---|
 | ESP32 DevKit | USB del PC; sin +5 V externo a VIN/5V | Confirmar pinout y tensión USB |
 | ESP32-CAM | 5 V y GND | Alimentación estable; no desactivar brownout |
-| HC-SR04 | 5 V del DevKit si se verifica, GND común, TRIG GPIO19 | Un sensor de nivel activo |
-| HC-SR04 ECHO | GPIO21 mediante divisor 1 kΩ/2 kΩ | No aplicar 5 V directo al GPIO |
+| HC-SR04 | 5 V del DevKit si se verifica, GND común, TRIG GPIO19 | Sensor de nivel activo; presencia instalada, automatización desactivada |
+| HC-SR04 nivel ECHO | GPIO21 mediante divisor propio 1 kΩ/2 kΩ | No aplicar 5 V directo al GPIO |
+| HC-SR04 presencia | TRIG GPIO26; ECHO GPIO34 mediante segundo divisor 1 kΩ/2 kΩ | GPIO34 solo entrada; automatización desactivada |
 | MG995 | Rojo a rama servo 5 V; GND común; señal GPIO25 por 330 Ω | No alimentar desde ESP32 ni protoboard |
 
-Divisor ECHO: Vgpio = Vsensor × 2 kΩ / (1 kΩ + 2 kΩ). Con 5,0 V resulta aproximadamente 3,33 V. Mida el valor real antes de conectar.
+Cada divisor ECHO: Vgpio = Vsensor × 2 kΩ / (1 kΩ + 2 kΩ). Con 5,0 V resulta aproximadamente 3,33 V. Mida el valor real antes de conectar.
 
 ## 4. Pines de firmware
 
@@ -55,7 +56,7 @@ Divisor ECHO: Vgpio = Vsensor × 2 kΩ / (1 kΩ + 2 kΩ). Con 5,0 V resulta apro
 | 25 | Señal PWM MG995 | Activo |
 | 2 | LED de estado | Según firmware |
 | 0 | Botón BOOT | Activo |
-| 26 / 34 | Sensor de presencia | Reservado; detección automática desactivada |
+| 26 / 34 | TRIG / ECHO de presencia | Instalado; detección automática desactivada |
 | 32 | Monitor riel servo | Opcional y desactivado por defecto |
 | 35 | Monitor batería | Desactivado; no hay batería |
 
@@ -68,7 +69,7 @@ Divisor ECHO: Vgpio = Vsensor × 2 kΩ / (1 kΩ + 2 kΩ). Con 5,0 V resulta apro
 5. Si el ESP32 se reinicia al mover el servo, desconecte y corrija alimentación antes de seguir.
 6. No deje el servo bloqueado contra topes mecánicos.
 7. La ausencia del fusible no elimina el riesgo de cortocircuito. Use fuente certificada con protección contra sobrecorriente y supervisión durante pruebas.
-8. No conecte USB del PC y fuente externa al mismo tiempo sin confirmar aislamiento eléctrico.
+8. Puede alimentar el DevKit por USB y la cámara/servo por fuente externa simultáneamente SIEMPRE QUE los positivos permanezcan separados y solo se comparta GND. No conecte dos fuentes al mismo pin de alimentación sin verificar aislamiento.
 
 ## 6. Diagramas del montaje vigente
 
