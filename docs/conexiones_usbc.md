@@ -17,33 +17,30 @@ Excluidos: panel solar, baterías 18650, BMS, cargador 2S, MT3608, convertidores
 
 ## 2. Distribución propuesta
 
-La fuente de 5 V alimenta dos ramas separadas. La corriente del servo no debe circular por pistas de protoboard ni por el regulador de la placa.
+**Arquitectura de laboratorio seleccionada:** el PC alimenta por USB únicamente al ESP32 DevKit y, previa comprobación, al HC-SR04. La fuente regulada externa de 5 V alimenta exclusivamente la ESP32-CAM y el MG995 en ramas separadas. Ambas alimentaciones comparten GND, pero sus positivos NO se unen. La corriente del servo no debe circular por pistas de protoboard ni por el regulador de la placa.
 
 ```text
-Fuente regulada 5 V / capacidad recomendada 5 A
-                 |
-          distribución estrella
-             /          \
-            /            \
-     Rama lógica       Rama servo
-       5 V               5 V
-      /   \               |
-   ESP32  ESP32-CAM      MG995 rojo
-     |       |              |
-     +-------+--------------+---- GND común
+PC USB ─── ESP32 DevKit ─── HC-SR04 (5 V, si está verificado)
+                │ GPIO25 (señal PWM)
+                └── GND común ──────────────────────────┐
+                                                       │
+Fuente externa 5 V ──┬── ESP32-CAM (5 V)               │
+                     └── MG995 (5 V, cables potencia) ──┘
+
+NO conectar el +5 V externo al pin VIN/5V del DevKit alimentado por USB.
 ```
 
 La recomendación de 5 A es un margen inicial, no una garantía: confirme la corriente de bloqueo del servo específico y el consumo de cámara/ESP32. Si la fuente no mantiene 5 V durante el movimiento, use una fuente separada y adecuada para el servo; una las tierras y no una los positivos de fuentes distintas.
 
-**No alimentar el conjunto desde el puerto USB de un computador.** El puerto puede limitar corriente y causar reinicios o sobrecarga. El cable USB del PC se usa para programación/monitor serie con alimentación externa desconectada, salvo que se haya verificado el aislamiento eléctrico de la placa.
+**No alimentar MG995 ni ESP32-CAM desde USB del computador.** El USB se usa para alimentar/programar el DevKit; comprobar que el pin de 5 V del DevKit puede alimentar el HC-SR04. No unir los rieles positivos USB y fuente externa. Verificar con multímetro antes de energizar.
 
 ## 3. Tensiones y señales
 
 | Elemento | Conexión | Precaución |
 |---|---|---|
-| ESP32 DevKit | 5 V a VIN o entrada USB, nunca ambas fuentes simultáneamente | Confirmar pinout y regulador |
+| ESP32 DevKit | USB del PC; sin +5 V externo a VIN/5V | Confirmar pinout y tensión USB |
 | ESP32-CAM | 5 V y GND | Alimentación estable; no desactivar brownout |
-| HC-SR04 | VCC 5 V, GND común, TRIG GPIO19 | Un sensor de nivel activo |
+| HC-SR04 | 5 V del DevKit si se verifica, GND común, TRIG GPIO19 | Un sensor de nivel activo |
 | HC-SR04 ECHO | GPIO21 mediante divisor 1 kΩ/2 kΩ | No aplicar 5 V directo al GPIO |
 | MG995 | Rojo a rama servo 5 V; GND común; señal GPIO25 por 330 Ω | No alimentar desde ESP32 ni protoboard |
 
@@ -75,7 +72,7 @@ Divisor ECHO: Vgpio = Vsensor × 2 kΩ / (1 kΩ + 2 kΩ). Con 5,0 V resulta apro
 
 ## 6. Diagramas del montaje vigente
 
-Los generadores `Documentation/wiring/generar_placa_control.py` y `generar_esquema.py` leen `ALIMENTACION_USBC` y los GPIO activos de `config.h`. Sus archivos SVG y `placa_control.md` representan ahora el montaje USB-C. La lista actual está en `Documentation/components/lista_materiales.csv`. El manual PDF y el video del diseño solar son históricos y no deben utilizarse para cablear esta versión.
+Los generadores `Documentation/wiring/generar_placa_control.py` y `generar_esquema.py` leen `ALIMENTACION_USBC` y los GPIO activos de `config.h`, pero **sus salidas no se consideran verificadas contra la distribución de dos fuentes de este manual**. No usarlas para conectar alimentación hasta revisar y actualizar los generadores y diagramas. La lista actual está en `Documentation/components/lista_materiales.csv`. El manual PDF y el video del diseño solar son históricos y no deben utilizarse para cablear esta versión.
 
 ## 7. Validación pendiente
 

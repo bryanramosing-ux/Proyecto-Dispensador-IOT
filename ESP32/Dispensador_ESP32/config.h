@@ -2,7 +2,7 @@
 //  config.h  -  Configuración del ESP32 DevKit V1 (controlador del dispensador)
 // =============================================================================
 //  Montaje vigente: fuente regulada USB-C/5 V, SIN panel solar, SIN batería,
-//  SIN fusible del diseño anterior y con un HC-SR04 activo (nivel de tolva). Esquema y tablas: docs/conexiones_usbc.md
+//  SIN fusible del diseño anterior y con DOS HC-SR04 instalados: nivel de tolva y presencia de mascota. Esquema y tablas: docs/conexiones_usbc.md
 //
 //  Los datos de TU red (Wi-Fi, token, IP) NO van aquí: van en secrets.h
 //  (copiar secrets_ejemplo.h -> secrets.h; ese archivo no se sube a GitHub).
@@ -25,9 +25,9 @@
 #define PIN_SERVO      25 // PWM 50 Hz (LEDC) -> señal MG995 (330 ohm en serie + 10k a GND)
 #define PIN_LED         2 // LED azul de la placa (indicador de estado)
 #define PIN_BOTON       0 // Botón BOOT: pulsación corta = 1 porción; larga (2 s) = borrar error
-// Opcionales (solo si se activan más abajo):
-#define PIN_TRIG       26 // TRIG del HC-SR04 de PRESENCIA (USAR_DETECCION_AUTOMATICA)
-#define PIN_ECHO       34 // ECHO de presencia por divisor 1k/2k. GPIO34 es solo entrada
+// Sensor de presencia físicamente previsto; procesamiento automático sujeto a validación:
+#define PIN_TRIG       26 // TRIG del HC-SR04 de PRESENCIA
+#define PIN_ECHO       34 // ECHO de presencia por SU PROPIO divisor 1k/2k. GPIO34 es solo entrada
 #define PIN_VSERVO     32 // ADC1_CH4: riel de 5 V del servo por divisor 100k/33k (USAR_MONITOR_SERVO)
 #define PIN_VBAT       35 // ADC1_CH7: batería por divisor 100k/33k (USAR_MONITOR_BATERIA; no se usa con USB-C)
 // Se usan solo canales ADC1 porque ADC2 no funciona mientras el Wi-Fi está activo.
@@ -66,7 +66,7 @@
 
 // -----------------------------------------------------------------------------
 // 4. MODO AUTOMÁTICO OPCIONAL (segundo HC-SR04 de presencia + visión en el PC)
-//    En la configuración vigente (un HC-SR04 para nivel) debe quedar en 0.
+//    Hay DOS sensores instalados. El de presencia solo activa clasificación y dispensación al cambiar esta opción a 1 tras validar visión, seguridad y hardware.
 // -----------------------------------------------------------------------------
 #define USAR_DETECCION_AUTOMATICA   0
 #define DIST_MIN_CM            3.0f   // < 3 cm: sensor tapado o lectura inválida

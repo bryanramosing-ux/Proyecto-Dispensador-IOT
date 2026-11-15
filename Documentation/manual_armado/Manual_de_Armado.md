@@ -21,11 +21,9 @@ Consulte la [lista de materiales vigente](../components/lista_materiales.csv). N
 
 ## 3. Alimentación y distribución
 
-1. Use una fuente regulada y certificada de 5 V, recomendación inicial 5 A continuos. Verifique etiqueta, polaridad, conector y capacidad real.
-2. Lleve la alimentación a una distribución en estrella:
-   - Rama lógica: ESP32 DevKit y ESP32-CAM con 5 V estables.
-   - Rama servo: alimentación de potencia con cable corto y calibre apropiado (AWG 20 recomendado para tramo corto).
-3. Una las tierras (GND) de ambas ramas en un punto común. La señal PWM necesita esa referencia.
+1. Conecte el ESP32 DevKit al PC mediante su cable USB de datos; no conecte el positivo de la fuente externa a VIN/5V del DevKit mientras está alimentado por USB.
+2. Alimente la ESP32-CAM y el MG995 desde una fuente externa regulada de 5 V con capacidad y protección verificadas; separe la rama de potencia del servo de la de cámara y use cable de calibre apropiado.
+3. Una las tierras (GND) del DevKit, cámara, sensor y servo; **no una los positivos de USB y fuente externa**. La señal PWM necesita esa referencia.
 4. Coloque un condensador electrolítico de 1000–2200 µF (tensión nominal mínima 10 V) cerca del conector del MG995, respetando polaridad.
 5. Cerca de la ESP32-CAM coloque 470 µF y 100 nF entre 5 V y GND.
 6. No conecte simultáneamente fuentes de 5 V distintas a VIN y al USB de la placa. Para programar por USB, desconecte primero la alimentación externa salvo que se haya verificado el aislamiento de alimentación de esa placa.
@@ -39,7 +37,7 @@ Consulte la [lista de materiales vigente](../components/lista_materiales.csv). N
 
 | HC-SR04 | ESP32 DevKit V1 | Observación |
 |---|---|---|
-| VCC | 5 V de la rama lógica | No usar 3,3 V salvo que el modelo lo permita |
+| VCC | 5 V del DevKit alimentado por USB, si se verifica su capacidad | No usar 3,3 V salvo que el modelo lo permita |
 | GND | GND común | Tierra compartida |
 | TRIG | GPIO19 | Según config.h |
 | ECHO | GPIO21 mediante divisor 1 kΩ/2 kΩ | Nunca conectar ECHO de 5 V directamente al ESP32 |
@@ -78,7 +76,7 @@ El dashboard muestra telemetría, cámara MJPEG, capturas, galería, historial y
 
 1. Con todo desconectado, inspeccione polaridad, terminales y aislamiento.
 2. Compruebe continuidad: no debe existir cortocircuito entre 5 V y GND.
-3. Energice únicamente la rama lógica, sin servo conectado. Mida 5 V y compruebe que ambas placas arrancan y se conectan a Wi-Fi.
+3. Pruebe primero el DevKit por USB sin servo; compruebe el HC-SR04 y después alimente la ESP32-CAM por su rama externa de 5 V. Mida cada tensión antes de conectar las placas.
 4. Compruebe /status, captura JPEG y stream de ESP32-CAM.
 5. Compruebe el HC-SR04: mida el nodo ECHO del divisor y compare distancias conocidas. Calibre tolva vacía y llena.
 6. Con la fuente apagada, conecte el MG995. Verifique alimentación directa desde la rama de potencia y GND común.
