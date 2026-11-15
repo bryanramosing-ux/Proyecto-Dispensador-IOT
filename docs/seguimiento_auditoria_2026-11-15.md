@@ -7,7 +7,7 @@
 - Se corrige un error de formato en README.
 
 ## Bloqueos antes de considerar el proyecto terminado
-1. **Cantidad de HC-SR04 sin resolver:** los requisitos anteriores pedían uno para nivel y excluían el sensor de presencia, pero una auditoría posterior plantea dos. Se mantiene el firmware con `USAR_DETECCION_AUTOMATICA=0` y un solo sensor hasta confirmación expresa. No activar alimentación automática sin pruebas.
+1. **Cantidad de HC-SR04 confirmada por el usuario: DOS.** Sensor de nivel en GPIO19/21 y presencia en GPIO26/34, cada ECHO con su propio divisor 1 kΩ/2 kΩ. El firmware mantiene `USAR_DETECCION_AUTOMATICA=0` para evitar dispensaciones automáticas no validadas; aún falta integrar y probar el flujo de presencia, visión y dosis.
 2. **Diagramas/generadores:** revisar `Documentation/wiring/generar_esquema.py`, `generar_placa_control.py` y salidas SVG/PNG con la arquitectura de dos alimentaciones. No usar diagramas sin esa comprobación.
 3. **Hardware:** identificar exactamente placa DevKit, cámara, fuente, versión de MG995 y sensores; comprobar con multímetro tensión, polaridad, protección y consumo.
 4. **Pruebas físicas:** completar `Documentation/calibration/acta_pruebas.csv`, incluyendo pulsos servo, gramos por porción, caídas de tensión, lecturas de nivel, stream y recuperación.

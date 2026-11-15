@@ -2,7 +2,7 @@
 //  DISPENSADOR INTELIGENTE DE ALIMENTO PARA MASCOTAS  -  IoT local
 //  Firmware del ESP32 DevKit V1 (controlador y actuador)
 // =============================================================================
-//  Montaje vigente: USB-C 5 V, un HC-SR04 (nivel de la tolva) y un MG995.
+//  Montaje previsto: DevKit por USB del PC, DOS HC-SR04 (nivel y presencia) y MG995 con fuente externa de 5 V.
 //
 //  Responsabilidades del ESP32:
 //    * Medir el nivel de alimento de la tolva (HC-SR04) y avisar cuando se acaba.
@@ -13,7 +13,7 @@
 //    * Generar la señal PWM del MG995 (solo señal: el servo se alimenta aparte).
 //    * Enviar su estado al backend (JSON) y responder GET /status.
 //    * Seguir funcionando aunque no haya Wi-Fi ni backend.
-//    * (Opcional, USAR_DETECCION_AUTOMATICA) detectar a la mascota con un segundo
+//    * (Tras validacion, USAR_DETECCION_AUTOMATICA) detectar a la mascota con el
 //      HC-SR04 y pedir la clasificación al servidor de visión del PC.
 //
 //  Entorno: Arduino IDE (núcleo esp32 2.x o 3.x) o PlatformIO.
