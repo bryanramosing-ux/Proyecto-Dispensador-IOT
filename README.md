@@ -152,3 +152,15 @@ Los esquemas, manual PDF, video, piezas STL y plan de impresión originales pued
 ## 10. Limitaciones y estado de validación
 
 No se ha demostrado en esta revisión el funcionamiento del hardware físico, el rendimiento de la fuente concreta, la estabilidad de la cámara en stream continuo, la precisión de la medición de tolva, la cantidad de alimento dispensada ni la seguridad del mecanismo con mascotas. Las pruebas de software/simulación no prueban esos aspectos. La clasificación OpenCV automática queda pendiente de integración y pruebas antes de poder declararla función implementada.
+
+## Correcciones de funcionamiento y comprobaciones
+
+El firmware guarda cada intento de alimentación antes de mover el motor y conserva
+los límites tras reiniciar. Un fallo PWM o de almacenamiento bloquea la entrega.
+El modo predeterminado es doméstico. Los diagramas SVG y la lista de cables se
+generan para el montaje USB-C real desde los GPIO activos; las pruebas del dashboard
+HTTP, del dosificador y del historial se ejecutan en GitHub Actions.
+
+La [guía de calibración](Documentation/calibration/calibracion.md) incluye el acta
+para las medidas físicas pendientes. Las pruebas automáticas no certifican gramos,
+consumo, exactitud del nivel ni movimiento físico del MG995.

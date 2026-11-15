@@ -110,7 +110,10 @@ class ServicioVision:
                      self.total, res.etiqueta, res.motivo, res.confianza, res.p_perro,
                      res.p_gato, distancia_cm, res.detalles)
             if self.cfg.GUARDAR_CAPTURAS and jpegs:
-                self._guardar(jpegs, res)
+                try:
+                    self._guardar(jpegs, res)
+                except OSError:
+                    log.exception("No se pudo guardar la captura; clasificación conservada")
             return 200, respuesta
 
     def _unir_con_visita(self, res):
@@ -130,9 +133,13 @@ class ServicioVision:
     def _guardar(self, jpegs, res):
         carpeta = Path(self.cfg.DIR_CAPTURAS) / datetime.now().strftime("%Y-%m-%d")
         carpeta.mkdir(parents=True, exist_ok=True)
-        base = datetime.now().strftime("%H%M%S")
+        base = datetime.now().strftime("%H%M%S_%f")
         for i, datos in enumerate(jpegs):
             (carpeta / f"{base}_{i}_{res.etiqueta}_{res.motivo}.jpg").write_bytes(datos)
+        limite = max(1, getattr(self.cfg, "MAX_CAPTURAS", 1000))
+        capturas = sorted(Path(self.cfg.DIR_CAPTURAS).glob("*/*.jpg"))
+        for vieja in capturas[:-limite]:
+            vieja.unlink(missing_ok=True)
 
     def panel(self):
         """Datos del panel web: estado del ESP32 (consultado aquí, sin CORS), alertas y fotos."""

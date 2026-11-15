@@ -73,7 +73,9 @@ class Base(unittest.TestCase):
 
     @classmethod
     def tearDownClass(cls):
-        cls.srv.shutdown(); cls.cam.shutdown(); cls.esp.shutdown(); cls.app.db.close(); cls.tmp.cleanup()
+        cls.srv.shutdown(); cls.cam.shutdown(); cls.esp.shutdown()
+        cls.srv.server_close(); cls.cam.server_close(); cls.esp.server_close()
+        cls.app.db.close(); cls.tmp.cleanup()
 
     def req(self, method, path, body=None, headers=None, dash=True):
         h = {"Content-Type": "application/json"}

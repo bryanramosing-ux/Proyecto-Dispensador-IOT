@@ -73,9 +73,9 @@ Divisor ECHO: Vgpio = Vsensor × 2 kΩ / (1 kΩ + 2 kΩ). Con 5,0 V resulta apro
 7. La ausencia del fusible no elimina el riesgo de cortocircuito. Use fuente certificada con protección contra sobrecorriente y supervisión durante pruebas.
 8. No conecte USB del PC y fuente externa al mismo tiempo sin confirmar aislamiento eléctrico.
 
-## 6. No usar los esquemas heredados
+## 6. Diagramas del montaje vigente
 
-Los archivos Documentation/wiring/ y el manual PDF original corresponden al diseño anterior con batería 2S, panel solar, dos sensores, convertidores y fusible. No deben utilizarse para cablear esta versión. La lista actual está en Documentation/components/lista_materiales.csv y el manual vigente en Documentation/manual_armado/Manual_de_Armado.md.
+Los generadores `Documentation/wiring/generar_placa_control.py` y `generar_esquema.py` leen `ALIMENTACION_USBC` y los GPIO activos de `config.h`. Sus archivos SVG y `placa_control.md` representan ahora el montaje USB-C. La lista actual está en `Documentation/components/lista_materiales.csv`. El manual PDF y el video del diseño solar son históricos y no deben utilizarse para cablear esta versión.
 
 ## 7. Validación pendiente
 

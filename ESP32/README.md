@@ -64,3 +64,17 @@ make -C ESP32/test_host
 ```
 
 Las pruebas de host comprueban lógica con sustitutos de hardware. No verifican sensores reales, Wi-Fi, tensiones, corriente ni movimiento físico del MG995.
+
+## Historial persistente y errores de hardware
+
+Cada intento manual o automático se guarda en NVS antes de mover el motor,
+incluyendo las entregas que terminan con pérdida del riel o atasco. Sin RTC, al
+reiniciar se recuperan las cuentas y se renuevan de forma conservadora los
+cooldowns y la ventana de 24 h desde el arranque. Los contadores son intentos,
+no gramos confirmados. Supervisar la alimentación si los reinicios son frecuentes.
+
+`ERROR_REGISTRO` bloquea la entrega si no puede leer/verificar/escribir el historial;
+RESET no elimina ese bloqueo ni permite saltarse los límites. Un PWM no
+inicializado también bloquea la dosificación. Reparar y reiniciar; no borrar la
+flash para volver a alimentar. El modo predeterminado es doméstico (`MODO_FERIA 0`);
+`CICLO` exige modo feria de calibración, sin mascotas.

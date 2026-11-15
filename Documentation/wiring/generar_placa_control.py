@@ -18,12 +18,14 @@ El ESP32 va sobre tiras de pines HEMBRA (se puede retirar). Se asume la DOIT Dev
 de 30 pines (filas separadas 25,4 mm = 10 agujeros): VERIFICAR con la placa real.
 """
 import math
+from perfil_electrico import leer, validar
 import re
 import sys
 from pathlib import Path
 
 RAIZ = Path(__file__).resolve().parents[2]
 SALIDA = Path(__file__).resolve().parent
+USBC = leer()[1].get("ALIMENTACION_USBC", 0) == 1
 COLS, FILAS = 35, 27
 PASO = 26                      # px por agujero en el dibujo
 MARGEN = 60
@@ -192,9 +194,18 @@ def verificar(cables):
             errores.append(f"la red {red} no queda unida ({len(grupos)} trozos)")
     # 3) coherencia con config.h
     pines = leer_config()
-    esperado = {"TRIG": pines["PIN_TRIG"], "ECHO_3V3": pines["PIN_ECHO"], "SERVO_GPIO": pines["PIN_SERVO"],
-                "VBAT_S": pines["PIN_VBAT"], "V6_S": pines["PIN_VSERVO"], "VPAN_S": pines["PIN_VPANEL"],
-                "TRIG2": pines["PIN_TRIG_NIVEL"], "ECHO2_3V3": pines["PIN_ECHO_NIVEL"]}
+    if USBC:
+        flags = leer()[1]
+        validar(pines, flags)
+        esperado = {"SERVO_GPIO": pines["PIN_SERVO"]}
+        for red, nombre in (("TRIG2", "PIN_TRIG_NIVEL"), ("ECHO2_3V3", "PIN_ECHO_NIVEL"),
+                            ("TRIG", "PIN_TRIG"), ("ECHO_3V3", "PIN_ECHO"), ("V6_S", "PIN_VSERVO")):
+            if red in REDES:
+                esperado[red] = pines[nombre]
+    else:
+        esperado = {"TRIG": pines["PIN_TRIG"], "ECHO_3V3": pines["PIN_ECHO"], "SERVO_GPIO": pines["PIN_SERVO"],
+                    "VBAT_S": pines["PIN_VBAT"], "V6_S": pines["PIN_VSERVO"], "VPAN_S": pines["PIN_VPANEL"],
+                    "TRIG2": pines["PIN_TRIG_NIVEL"], "ECHO2_3V3": pines["PIN_ECHO_NIVEL"]}
     for red, gpio in esperado.items():
         if not {f"ESP32.A.D{gpio}", f"ESP32.B.D{gpio}"} & set(REDES[red][1]):
             errores.append(f"{red}: config.h usa GPIO{gpio} pero la placa no lo conecta")
@@ -341,6 +352,9 @@ def svg(cables):
     notas = ["Cables: aislados, por el lado", "de componentes. Un cruce de", "líneas NO es una unión.",
              "", "Los números remiten a la", "lista de cables", "(placa_control.md).", "",
              "El servo se alimenta del", "Buck A (6 V) directamente:", "por esta placa solo pasa", "su SEÑAL."]
+    if USBC:
+        notas = ["Montaje USB-C / 5 V", "GND común en estrella.", "Servo: rama de potencia", "propia; esta placa lleva", "solo su SEÑAL.",
+                 "Cámara: 5 V / GND externos.", "Sin batería ni panel solar.", "Red V6_S (si se monta):", "monitor del riel de 5 V."]
     for i, t in enumerate(notas):
         o.append(f'<text x="{lx}" y="{ly + 22 + len(REDES) * 20 + 30 + i * 16}" font-size="11">{t}</text>')
     o.append("</svg>")
@@ -373,6 +387,17 @@ def markdown(cables):
             db = inverso.get(b, "bus GND")
             via = " → ".join(str(h) for h in ruta[1:-1])
             filas.append(f"| {n} | {red} | {da} {a} | {db} {b} | {via or '(recto)'} |")
+    if USBC:
+        return "\n".join(filas + ["", "## Montaje USB-C / 5 V", "",
+            "J1: 5 V y GND de la rama lógica. J3: SIG/GND del servo, no su potencia.",
+            "J5: GND-ECHO-TRIG-VCC del sensor de nivel; R5/R6 forman el divisor del ECHO.",
+            "El servo recibe 5 V por su rama de potencia con condensador 1000–2200 µF.",
+            "La cámara recibe 5 V/GND y condensadores 470 µF + 100 nF fuera de esta placa.",
+            "Los conectores/pasivos opcionales aparecen solo si config.h los activa.",
+            "V6_S, si está presente, mide el riel de 5 V mediante divisor 100k/33k.",
+            "No hay J4 de batería/panel; no conectar tensiones del diseño solar.",
+            "Antes de insertar ESP32: medir continuidad, polaridad y ECHO ≤3,4 V.",
+            "Detalle: docs/conexiones_usbc.md. Medir la separación real de las tiras del DevKit.", ""]).rstrip() + "\n"
     filas += ["", "## Arnés de cables de la torre", "",
               "Longitudes estimadas sobre el modelo 3D (recorrido por los pasos del piso y del tabique) con ~30 % de",
               "holgura; cortar un poco más largo y ajustar al montar. Conectores entre módulos recomendados: JST-XH",
@@ -399,7 +424,44 @@ def markdown(cables):
     return "\n".join(filas) + "\n"
 
 
+def configurar_usbc():
+    pines, flags = leer()
+    validar(pines, flags)
+    quitar = {"J4", "C1", "C3"}
+    redes_quitar = {"VBAT_S", "VPAN_S"}
+    if not flags.get("USAR_MONITOR_SERVO"):
+        quitar.add("C2")
+        redes_quitar.add("V6_S")
+    if not flags.get("USAR_DETECCION_AUTOMATICA"):
+        quitar.update({"J2", "R1", "R2"})
+        redes_quitar.update({"TRIG", "ECHO_5V", "ECHO_3V3"})
+    if not flags.get("USAR_SENSOR_NIVEL"):
+        quitar.update({"J5", "R5", "R6"})
+        redes_quitar.update({"TRIG2", "ECHO2_5V", "ECHO2_3V3"})
+    # Con monitor de servo, el conector J4 solo usa el riel medido y GND.
+    if flags.get("USAR_MONITOR_SERVO"):
+        quitar.remove("J4")
+        COMP["J4"]["pines"] = {k:v for k,v in COMP["J4"]["pines"].items() if k in {"V6", "GND"}}
+        COMP["J4"]["texto"] = "J4 MONITOR 5 V"
+    for nombre in quitar:
+        COMP.pop(nombre, None)
+    for nombre in redes_quitar:
+        REDES.pop(nombre, None)
+    for red, (color, refs) in list(REDES.items()):
+        REDES[red] = color, [ref for ref in refs if ref.split(".")[0] in COMP]
+    RUTAS["5V"] = []
+    if "J2" in COMP:
+        RUTAS["5V"].append([(33, 3), (33, 4)])
+    RUTAS["5V"].append([(33, 3), (21, 3)])
+    if "J5" in COMP:
+        RUTAS["5V"] += [[(21, 3), (21, 2), (9, 2)], [(9, 2), (9, 7), (18, 7), (18, 18), (17, 18)]]
+    else:
+        RUTAS["5V"].append([(21, 3), (18, 3), (18, 18), (17, 18)])
+
+
 def main():
+    if USBC:
+        configurar_usbc()
     cables = {red: cables_de_red(red, refs) for red, (_, refs) in REDES.items()}
     errores = verificar(cables)
     total = sum(len(v) for v in cables.values())

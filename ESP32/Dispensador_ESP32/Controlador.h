@@ -21,6 +21,7 @@ enum class Estado : uint8_t {
   ERROR_SERVO,
   ERROR_ALIMENTACION,
   ERROR_MECANISMO,
+  ERROR_REGISTRO,
 };
 
 const char* nombreEstado(Estado e);
@@ -75,6 +76,10 @@ class Hardware {
   virtual RespuestaClasificacion clasificar(int distanciaCm) = 0;  // GET PC /classify
   virtual float voltajeBateria() = 0;
   virtual float voltajeServo() = 0;
+  virtual bool servoPreparado() = 0;
+  // Carga/guarda atómica del historial. Un fallo bloquea la entrega.
+  virtual bool cargarRaciones(uint8_t* cuentas, uint32_t* totales, uint8_t clases) = 0;
+  virtual bool guardarRaciones(const uint8_t* cuentas, const uint32_t* totales, uint8_t clases) = 0;
   virtual ResultadoDosis dosificar(uint8_t ciclos) = 0;
   virtual float nivelTolvaPct() = 0;          // 0-100 %; < 0 si no hay lectura válida
   virtual bool notificar(Alerta a, float nivelPct) = 0;  // true si el PC la recibió
@@ -153,7 +158,9 @@ class Controlador {
   void cambiarA(Estado nuevo, const char* motivo = nullptr);
   bool esErrorBloqueante() const;
   bool mascotaPresente(float d) const;
-  void registrarRacion(int clase);
+  bool registrarRacion(int clase);
+  bool guardarRegistro();
+  void depurarRegistro();
   Solicitud verificarRacion(int clase, char* porque, int n) const;
   Solicitud evaluarSolicitud(uint8_t porciones);
   void volverAEsperar(const char* motivo);
@@ -181,7 +188,8 @@ class Controlador {
   float ultimaConfianza_ = 0.0f;
   char ultimoMotivo_[28] = "";
 
-  // Raciones
+  // Raciones: se reservan ANTES de accionar el motor.
+  bool registroOk_ = false;
   bool huboRacion_ = false;
   uint32_t tUltimaRacion_ = 0;
   uint32_t registro_[N_CLASES][REGISTRO] = {};

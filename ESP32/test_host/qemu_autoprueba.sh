@@ -48,21 +48,28 @@ prohibir() {
 }
 echo "---------------- verificación ----------------"
 esperar "=== Dispensador IoT - ESP32 controlador ==="
-esperar "[ESPERANDO] -> [ERROR_WIFI] : sin Wi-Fi al iniciar"
-esperar "DIST | NIVEL [VACIO|LLENO] | SERVO <us>"
-esperar '"estado":"ERROR_WIFI"'
-esperar "Distancia: -1.0 cm"
-esperar "Bateria 7.60 V | Servo 6.00 V"
+esperar "Firmware 2.0.0 | modo MANUAL"
+esperar "sistema iniciado sin Wi-Fi (control local activo)"
+esperar "NIVEL [VACIO|LLENO] | DISPENSAR <n>"
+esperar '"modo":"MANUAL"'
+esperar "Monitor del riel del servo desactivado"
 esperar "Servo -> 1200 us OK"
 esperar "Rango permitido 500..2500 us"
 esperar "CICLO x1 -> OK"
-esperar "motivo=SIN_WIFI (NO se dispensa)"
+esperar "DISPENSAR 9 -> PORCIONES_INVALIDAS"
+esperar "DISPENSAR 1 -> ACEPTADA"
+esperar "[ESPERANDO] -> [DOSIFICANDO] : racion MANUAL x1 (SERIE)"
+esperar "[DOSIFICANDO] -> [FINALIZADO] : racion entregada"
+esperar "DISPENSAR 1 -> COOLDOWN"
+esperar '"dispensaciones_24h":1'
 esperar "Nivel tolva: sin lectura"
 esperar '"nivel_tolva":'
-esperar "[ERROR_WIFI] -> [ESPERANDO] : errores borrados manualmente"
+
 esperar "AUTOPRUEBA_FIN"
 prohibir "Guru Meditation"
 prohibir "assert failed"
 prohibir "Rebooting..."
 prohibir "Brownout"
+prohibir "ERROR_REGISTRO"
+prohibir "PWM no inicializado"
 if [ "$fallos" -eq 0 ]; then echo "AUTOPRUEBA QEMU: OK"; else echo "AUTOPRUEBA QEMU: $fallos FALLO(S)"; exit 1; fi

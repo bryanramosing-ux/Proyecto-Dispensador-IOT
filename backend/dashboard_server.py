@@ -347,23 +347,24 @@ class App:
                     self.log("error", f"Captura automática fallida: {e}")
 
     def _loop_discovery(self):
-        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        try:
-            sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-            sock.bind(("", self.cfg.discovery_port))
-        except OSError as e:
-            print(f"Aviso: descubrimiento UDP desactivado ({e}); configure URL_BACKEND en secrets.h")
-            return
-        sock.settimeout(1)
-        while not self._stop.is_set():
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
             try:
-                data, addr = sock.recvfrom(64)
-            except socket.timeout:
-                continue
-            except OSError:
+                sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+                sock.bind(("", self.cfg.discovery_port))
+            except OSError as e:
+                print(f"Aviso: descubrimiento UDP desactivado ({e}); configure URL_BACKEND en secrets.h")
                 return
-            if data.strip() == MSG_PREGUNTA:
-                sock.sendto(MSG_RESPUESTA + str(self.cfg.port).encode(), addr)
+            sock.settimeout(1)
+            while not self._stop.is_set():
+                try:
+                    data, addr = sock.recvfrom(64)
+                except socket.timeout:
+                    continue
+                except OSError:
+                    return
+                if data.strip() == MSG_PREGUNTA:
+                    sock.sendto(MSG_RESPUESTA + str(self.cfg.port).encode(), addr)
+
 
     def start_background(self):
         for fn in (self._loop_watchdog, self._loop_camera, self._loop_discovery):
