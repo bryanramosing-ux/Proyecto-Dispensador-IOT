@@ -1,7 +1,7 @@
 fecha,firmware,prueba,condicion,valor_medido,unidad,criterio,resultado,evidencia
-,,riel_servo,bateria_llena,,,minimo_5.8_V_en_giro,PENDIENTE,
-,,riel_servo,bateria_6.8_V,,,minimo_5.8_V_en_giro,PENDIENTE,
-,,riel_logica,bateria_6.8_V,,,5.0_a_5.1_V,PENDIENTE,
+,,riel_servo,fuente_5_V,,,rango_de_la_unidad_MG995_en_giro,PENDIENTE,
+,,riel_servo,fuente_5_V_carga_maxima,,,rango_de_la_unidad_MG995_en_giro,PENDIENTE,
+,,riel_logica,fuente_5_V_carga_maxima,,,5.0_a_5.1_V,PENDIENTE,
 ,,dosificacion,tolva_llena,,,CV_maximo_10_por_ciento,PENDIENTE,
 ,,dosificacion,tolva_media,,,CV_maximo_10_por_ciento,PENDIENTE,
 ,,dosificacion,tolva_baja,,,CV_maximo_10_por_ciento,PENDIENTE,

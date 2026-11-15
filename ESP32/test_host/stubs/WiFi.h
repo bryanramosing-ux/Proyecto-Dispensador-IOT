@@ -4,6 +4,8 @@ enum wl_status_t { WL_IDLE_STATUS = 0, WL_CONNECTED = 3, WL_DISCONNECTED = 6 };
 enum wifi_mode_t { WIFI_STA = 1 };
 class IPAddress {
  public:
+  IPAddress() {}
+  IPAddress(uint8_t, uint8_t, uint8_t, uint8_t) {}
   bool fromString(const char*) { return true; }
   String toString() const { return String("0.0.0.0"); }
 };

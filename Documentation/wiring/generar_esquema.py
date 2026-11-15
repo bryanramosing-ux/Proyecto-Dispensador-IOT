@@ -41,6 +41,9 @@ ESTILOS = """
 """
 
 
+from perfil_electrico import leer, validar
+
+
 def leer_pines():
     txt = (RAIZ / "ESP32/Dispensador_ESP32/config.h").read_text(encoding="utf-8")
     pines = {k: int(v) for k, v in re.findall(r"#define\s+(PIN_\w+)\s+(\d+)", txt)}
@@ -377,7 +380,49 @@ def dibujar(p):
     return d
 
 
+def dibujar_usbc(p, flags):
+    d = Dibujo()
+    d.texto(40, 40, "Dispensador IoT — montaje USB-C / 5 V", "t", font_size="24")
+    d.bloque(40, 90, 270, 90, "Fuente regulada 5 V", ["5 A recomendados; verificar corriente real", "Protección de sobrecorriente", "Distribución en estrella"], "aux")
+    d.bloque(440, 90, 320, 190, "ESP32 DevKit V1", ["VIN: 5 V; GND común",
+        f"PWM servo: GPIO{p['PIN_SERVO']} → R3 330 Ω → SIG", "R4 10 kΩ: GPIO PWM a GND",
+        f"BOOT GPIO{p['PIN_BOTON']}; LED GPIO{p['PIN_LED']}", "USB del PC: solo programación", "Desconectar fuente externa al programar"])
+    d.bloque(1040, 90, 400, 110, "ESP32-CAM AI-Thinker", ["5 V / GND por rama lógica", "470 µF + 100 nF junto a la cámara", "Datos: Wi-Fi / HTTP; sin cable de datos al ESP32"])
+    d.bloque(1040, 420, 400, 120, "MG995 180°", ["Rojo: rama propia 5 V (no desde el ESP32)", "Marrón: GND común; naranja: señal PWM",
+        "1000–2200 µF junto al conector", "Medir tensión y corriente durante el giro"])
+    d.linea([(310, 120), (440, 120)], "v5")
+    d.linea([(350, 120), (350, 70), (1240, 70), (1240, 90)], "v5")
+    d.linea([(350, 120), (350, 580), (1240, 580), (1240, 540)], "v5")
+    d.texto(780, 570, "Rama de potencia del servo: 5 V / GND", "s")
+    d.linea([(760, 200), (960, 200), (960, 450), (1040, 450)], "sig")
+    if flags.get('USAR_SENSOR_NIVEL'):
+        d.bloque(440, 420, 420, 120, "HC-SR04 — nivel de tolva", ["VCC 5 V; GND común", f"TRIG ← GPIO{p['PIN_TRIG_NIVEL']}",
+            f"ECHO → 1 kΩ → GPIO{p['PIN_ECHO_NIVEL']}; 2 kΩ del nodo a GND", "ECHO al GPIO ≤3,4 V con alimentación de 5,1 V"])
+        d.linea([(600, 280), (600, 420)], "sig")
+        d.linea([(350, 380), (650, 380), (650, 420)], "v5")
+    notas = ["GND de fuente, ESP32, cámara, sensor y servo unidos en estrella.",
+        "No conectar 5 V directos a GPIO ni alimentar el servo desde VIN/3V3.",
+        "Sin batería, panel solar, BMS ni convertidores del diseño anterior.",
+        "Cruces sin punto no son uniones. Ver placa_control.svg para el cableado de señales.",
+        "Comprobar montaje y tensión bajo carga antes de conectar animales."]
+    if flags.get('USAR_DETECCION_AUTOMATICA'):
+        notas.append(f"PRESENCIA OPCIONAL: VCC 5 V/GND; TRIG GPIO{p['PIN_TRIG']}; ECHO por divisor 1k/2k a GPIO{p['PIN_ECHO']}.")
+    if flags.get('USAR_MONITOR_SERVO'):
+        notas.append(f"MONITOR OPCIONAL: riel 5 V → 100k → GPIO{p['PIN_VSERVO']}; 33k y 100nF del nodo a GND.")
+    for i, nota in enumerate(notas):
+        d.texto(40, 650 + 35*i, nota, "s", font_size="16")
+    return d
+
+
 def main():
+    global ANCHO, ALTO
+    pines, flags = leer()
+    if flags.get('ALIMENTACION_USBC'):
+        ANCHO, ALTO = 1520, 900
+        validar(pines, flags)
+        SALIDA.write_text(dibujar_usbc(pines, flags).svg(), encoding='utf-8')
+        print('Esquema USB-C: GPIO activos verificados; sin PIN_VPANEL ni circuito solar')
+        return 0
     pines = leer_pines()
     usados = [pines[k] for k in ("PIN_TRIG", "PIN_ECHO", "PIN_SERVO", "PIN_VBAT", "PIN_VSERVO", "PIN_VPANEL",
                                  "PIN_TRIG_NIVEL", "PIN_ECHO_NIVEL")]

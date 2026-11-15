@@ -66,6 +66,23 @@ jobs:
           git clone --depth 1 https://github.com/bblanchon/ArduinoJson ESP32/test_host/ArduinoJson
           make -C ESP32/test_host sintaxis
 
+  dashboard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: API HTTP del dashboard, tokens, galería y dispositivo desconectado
+        run: python -m unittest discover -s backend/tests -p 'test_*.py' -v
+      - name: Pines activos y perfiles eléctricos
+        run: python -m unittest discover -s Documentation/wiring/tests -v
+      - name: Sintaxis del cliente web
+        run: node --check frontend/app.js
+
   firmware:
     runs-on: ubuntu-latest
     strategy:

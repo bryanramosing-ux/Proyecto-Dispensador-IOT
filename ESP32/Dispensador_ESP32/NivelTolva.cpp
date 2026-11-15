@@ -6,7 +6,7 @@
 #include "config.h"
 
 NivelTolva::NivelTolva(uint8_t pinTrig, uint8_t pinEcho)
-    : sensor_(pinTrig, pinEcho, N_MUESTRAS_NIVEL, TIMEOUT_ECO_US),
+    : sensor_(pinTrig, pinEcho, N_MUESTRAS_NIVEL, TIMEOUT_ECO_NIVEL_US),
       vacia_(DIST_TOLVA_VACIA_CM), llena_(DIST_TOLVA_LLENA_CM) {}
 
 void NivelTolva::iniciar() {
@@ -19,7 +19,10 @@ void NivelTolva::iniciar() {
   }
 }
 
-float NivelTolva::distanciaCm() { return sensor_.medirCm(); }
+float NivelTolva::distanciaCm() {
+  ultima_ = sensor_.medirCm();
+  return ultima_;
+}
 
 float NivelTolva::alturaPct(float d) const {
   if (d < 0 || vacia_ - llena_ < 2.0f) return -1.0f;   // sin eco o calibración inválida

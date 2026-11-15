@@ -1,0 +1,3 @@
+# El backend usa SOLO la biblioteca estándar de Python 3.10+: no hay dependencias que instalar.
+#   python3 backend/dashboard_server.py
+# (Pillow es opcional y solo lo usa backend/tests/simulador_dispositivos.py para dibujar imágenes simuladas.)

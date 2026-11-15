@@ -6,10 +6,13 @@ void Energia::iniciar() {
   return;
 #endif
   // Atenuación 11 dB: rango útil aprox. 0,15-2,45 V con buena linealidad.
-  // Los divisores están dimensionados para no superar ~2,1 V en el pin.
+  // Divisor 100k/33k: 5,0 V -> 1,24 V en el pin.
+#if USAR_MONITOR_BATERIA
   analogSetPinAttenuation(PIN_VBAT, ADC_11db);
+#endif
+#if USAR_MONITOR_SERVO
   analogSetPinAttenuation(PIN_VSERVO, ADC_11db);
-  analogSetPinAttenuation(PIN_VPANEL, ADC_11db);
+#endif
 }
 
 #ifdef SIMULACION_QEMU
@@ -17,7 +20,7 @@ void Energia::iniciar() {
 float Energia::leer(uint8_t pin, float factor, uint8_t muestras) {
   (void)factor;
   (void)muestras;
-  return pin == PIN_VBAT ? 7.6f : (pin == PIN_VSERVO ? 6.0f : 2.0f);
+  return pin == PIN_VBAT ? 7.6f : 5.0f;
 }
 #else
 float Energia::leer(uint8_t pin, float factor, uint8_t muestras) {
@@ -27,6 +30,6 @@ float Energia::leer(uint8_t pin, float factor, uint8_t muestras) {
 }
 #endif
 
-float Energia::bateria() { return leer(PIN_VBAT, FACTOR_VBAT); }
-float Energia::servo() { return leer(PIN_VSERVO, FACTOR_VSERVO, 4); }
-float Energia::panel() { return leer(PIN_VPANEL, FACTOR_VPANEL); }
+// Un pin sin divisor montado queda flotante: no se lee si el monitor está apagado.
+float Energia::bateria() { return USAR_MONITOR_BATERIA ? leer(PIN_VBAT, FACTOR_VBAT) : 0.0f; }
+float Energia::servo() { return USAR_MONITOR_SERVO ? leer(PIN_VSERVO, FACTOR_VSERVO, 4) : 0.0f; }

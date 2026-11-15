@@ -1,3 +1,8 @@
+> En el montaje USB-C manual el proceso principal es `backend/dashboard_server.py`.
+> Para iniciarlo automáticamente, sustituir ExecStart por ese archivo y usar el
+> directorio raíz del repositorio. OpenCV es opcional y usa puerto 8000; el backend
+> manual usa 8001. Su configuración se lee de `backend/.env`.
+
 # Arranque continuo del servidor de visión
 
 Primero completar la [puesta en marcha](../calibration/calibracion.md). El servidor
