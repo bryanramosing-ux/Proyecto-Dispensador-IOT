@@ -203,7 +203,7 @@ def dibujar(p):
     d.tierra(330, 352)
     d.linea([(330, 345), (330, 352)], "gnd")
     # convertidores
-    d.bloque(400, 880, 205, 60, "Buck A → 6,0 V servo", ["≥3 A (XL4015) · solo el MG995"], "aux")
+    d.bloque(400, 880, 205, 60, "Buck-boost A → 6,0 V", ["Vin 6–8,4 V · ≥3 A"], "aux")
     d.bloque(400, 980, 205, 60, "Buck B → 5,0 V lógica", ["2–3 A · 470 µF a la salida"], "aux")
     # 6 V: al divisor (subida) y al servo (riel inferior)
     d.linea([(605, 910), (645, 910)], "v6")

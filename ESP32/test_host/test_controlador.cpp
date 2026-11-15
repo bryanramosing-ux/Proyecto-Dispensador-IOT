@@ -25,6 +25,24 @@ struct FakeHW : Hardware {
   int dosis = 0, ciclosTotales = 0, reinicios = 0, clasificaciones = 0, consultasCamara = 0;
   std::vector<uint32_t> tFotos;      // instante de cada pedido de clasificación (= foto)
   bool verbose = false;
+  bool pwmOk = true, lecturaNvsOk = true, escrituraNvsOk = true;
+  uint8_t guardadas[N_CLASES] = {};
+  uint32_t totalesGuardados[N_CLASES] = {};
+  int escrituras = 0;
+  bool servoPreparado() override { return pwmOk; }
+  bool cargarRaciones(uint8_t* cuentas, uint32_t* totales, uint8_t clases) override {
+    if (!lecturaNvsOk) return false;
+    memcpy(cuentas, guardadas, clases * sizeof(*cuentas));
+    memcpy(totales, totalesGuardados, clases * sizeof(*totales));
+    return true;
+  }
+  bool guardarRaciones(const uint8_t* cuentas, const uint32_t* totales, uint8_t clases) override {
+    if (!escrituraNvsOk) return false;
+    memcpy(guardadas, cuentas, clases * sizeof(*cuentas));
+    memcpy(totalesGuardados, totales, clases * sizeof(*totales));
+    escrituras++;
+    return true;
+  }
 
   uint32_t ahoraMs() override { return t; }
   float distanciaCm() override { return dist; }
@@ -53,6 +71,7 @@ struct FakeHW : Hardware {
     return true;
   }
   ResultadoDosis dosificar(uint8_t c) override {
+    assert(guardadas[1] + guardadas[2] > 0); // reservado antes de mover el motor
     dosis++;
     ciclosTotales += c;
     return resultadoDosis;
@@ -533,6 +552,63 @@ int main() {
     CHECK(monotona);
     CHECK(alturaAVolumenPct(20) > 4.0f && alturaAVolumenPct(20) < 5.0f);
     CHECK(alturaAVolumenPct(55) > 26.0f && alturaAVolumenPct(55) < 28.0f);   // interpolación 22 -> 32
+  }
+
+
+  {
+    prueba("Reinicio: conserva limite diario y cooldown; no repite racion a la mascota presente");
+    FakeHW hw;
+    auto p = params(); p.maxRacionesDia[1] = 1;
+    Controlador antes(hw, p); antes.iniciar();
+    hw.dist = 20; hw.respuestas.push_back(resp(CLASE_PERRO)); correr(antes, hw, 2000);
+    CHECK(hw.dosis == 1 && hw.guardadas[1] == 1);
+    hw.t = 0;
+    Controlador despues(hw, p); despues.iniciar();
+    CHECK(despues.racionesUltimas24h(1) == 1 && despues.cooldownRestanteMs() > 0);
+    hw.respuestas.push_back(resp(CLASE_PERRO)); correr(despues, hw, 120000);
+    CHECK(hw.dosis == 1);
+    hw.dist = -1; correr(despues, hw, 4000); hw.dist = 20; correr(despues, hw, 2000);
+    CHECK(hw.dosis == 1); // incluso tras liberar zona, sigue vigente el limite diario
+    hw.t = 86400000UL; hw.dist = -1; correr(despues, hw, 4000);
+    CHECK(despues.racionesUltimas24h(1) == 0 && hw.guardadas[1] == 0);
+    hw.respuestas.push_back(resp(CLASE_PERRO));
+    hw.dist = 20; correr(despues, hw, 2000); CHECK(hw.dosis == 2);
+  }
+  {
+    prueba("Perdida de riel DURANTE entrega: el intento ya esta guardado");
+    FakeHW hw; Controlador c(hw, params()); c.iniciar();
+    hw.resultadoDosis = ResultadoDosis::SIN_ALIMENTACION_SERVO;
+    hw.dist = 20; hw.respuestas.push_back(resp(CLASE_PERRO)); correr(c, hw, 2000);
+    CHECK(c.estado() == Estado::ERROR_SERVO && c.racionesUltimas24h(1) == 1 && hw.guardadas[1] == 1);
+  }
+  {
+    prueba("NVS inaccesible o corrupta: no dosifica y RESET no borra el bloqueo");
+    FakeHW hw; hw.lecturaNvsOk = false;
+    Controlador c(hw, params()); c.iniciar(); c.borrarErrores();
+    hw.dist = 20; correr(c, hw, 2000);
+    CHECK(c.estado() == Estado::ERROR_REGISTRO && hw.dosis == 0);
+  }
+  {
+    prueba("Fallo al reservar en NVS: motor no se acciona");
+    FakeHW hw; Controlador c(hw, params()); c.iniciar(); hw.escrituraNvsOk = false;
+    hw.dist = 20; hw.respuestas.push_back(resp(CLASE_PERRO)); correr(c, hw, 2000);
+    c.borrarErrores();
+    CHECK(c.estado() == Estado::ERROR_REGISTRO && hw.dosis == 0);
+  }
+  {
+    prueba("PWM no inicializado: bloqueo persistente incluso con RESET");
+    FakeHW hw; hw.pwmOk = false; Controlador c(hw, params()); c.iniciar();
+    c.borrarErrores(); hw.dist = 20; correr(c, hw, 2000);
+    CHECK(c.estado() == Estado::ERROR_SERVO && hw.dosis == 0);
+  }
+  {
+    prueba("Registros caducados no reaparecen tras una vuelta completa de millis");
+    FakeHW hw; Controlador c(hw, params()); c.iniciar();
+    hw.dist = 20; hw.respuestas.push_back(resp(CLASE_PERRO)); correr(c, hw, 2000);
+    hw.dist = -1; hw.t = 86410000UL; correr(c, hw, 100);
+    CHECK(hw.guardadas[1] == 0);
+    hw.t = 2000; correr(c, hw, 100);
+    CHECK(c.racionesUltimas24h(1) == 0);
   }
 
   printf(fallos ? "\nRESULTADO: %d FALLO(S)\n" : "\nRESULTADO: todas las pruebas OK\n", fallos);

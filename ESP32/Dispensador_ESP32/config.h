@@ -92,7 +92,9 @@
 // -----------------------------------------------------------------------------
 // 6. CONTROL DE REPETICIONES (política de uso, no dato físico)
 // -----------------------------------------------------------------------------
-#define MODO_FERIA 1   // 1 = tiempos cortos para demostración; 0 = uso doméstico
+#ifndef MODO_FERIA
+#define MODO_FERIA 0   // 1 = tiempos cortos para demostración; 0 = uso doméstico
+#endif
 #if MODO_FERIA
   #define COOLDOWN_GLOBAL_MS      30000UL   // 30 s entre raciones (cualquier mascota)
   #define COOLDOWN_PERRO_MS       60000UL

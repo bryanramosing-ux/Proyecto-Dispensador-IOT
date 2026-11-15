@@ -24,6 +24,7 @@ const char* nombreEstado(Estado e) {
     case Estado::ERROR_SERVO:         return "ERROR_SERVO";
     case Estado::ERROR_ALIMENTACION:  return "ERROR_ALIMENTACION";
     case Estado::ERROR_MECANISMO:     return "ERROR_MECANISMO";
+    case Estado::ERROR_REGISTRO:      return "ERROR_REGISTRO";
   }
   return "?";
 }
@@ -68,7 +69,8 @@ void Controlador::vigilarNivel(uint32_t ahora) {
 
   float n = hw_.nivelTolvaPct();
   if (n < 0) {
-    if (++invalidas_ >= p_.lecturasNivel && !avisoSinLectura_) {
+    if (invalidas_ < p_.lecturasNivel) invalidas_++;
+    if (invalidas_ >= p_.lecturasNivel && !avisoSinLectura_) {
       avisoSinLectura_ = true;
       nivelPct_ = -1.0f;              // desconocido: NO bloquea la alimentación
       emitir(Alerta::SENSOR_NIVEL_SIN_LECTURA);
@@ -79,10 +81,10 @@ void Controlador::vigilarNivel(uint32_t ahora) {
   avisoSinLectura_ = false;
   nivelPct_ = n;
 
-  bajas_ = (n < p_.nivelAlertaPct) ? bajas_ + 1 : 0;
-  vacias_ = (n <= p_.nivelVacioPct) ? vacias_ + 1 : 0;
-  noVacias_ = (n > p_.nivelVacioPct) ? noVacias_ + 1 : 0;
-  altas_ = (n > p_.nivelRearmePct) ? altas_ + 1 : 0;
+  bajas_ = (n < p_.nivelAlertaPct) ? (bajas_ < p_.lecturasNivel ? bajas_ + 1 : bajas_) : 0;
+  vacias_ = (n <= p_.nivelVacioPct) ? (vacias_ < p_.lecturasNivel ? vacias_ + 1 : vacias_) : 0;
+  noVacias_ = (n > p_.nivelVacioPct) ? (noVacias_ < p_.lecturasNivel ? noVacias_ + 1 : noVacias_) : 0;
+  altas_ = (n > p_.nivelRearmePct) ? (altas_ < p_.lecturasNivel ? altas_ + 1 : altas_) : 0;
 
   if (vacias_ >= p_.lecturasNivel && alertaNivel_ != Alerta::COMIDA_AGOTADA) {
     alertaNivel_ = Alerta::COMIDA_AGOTADA;
@@ -110,7 +112,26 @@ void Controlador::logf(const char* fmt, ...) {
 
 void Controlador::iniciar() {
   tEstado_ = hw_.ahoraMs();
-  zonaArmada_ = true;
+  registroOk_ = hw_.cargarRaciones(nRegistro_, totales_, N_CLASES);
+  for (int c = 1; c < N_CLASES; c++) {
+    if (nRegistro_[c] > REGISTRO || p_.maxRacionesDia[c] > REGISTRO) registroOk_ = false;
+    if (nRegistro_[c] <= REGISTRO) {
+      for (uint8_t i = 0; i < nRegistro_[c]; i++) registro_[c][i] = tEstado_;
+      posRegistro_[c] = nRegistro_[c] % REGISTRO;
+    }
+    huboRacion_ = huboRacion_ || nRegistro_[c] > 0;
+  }
+  tUltimaRacion_ = tEstado_;
+  zonaArmada_ = !huboRacion_;
+  if (!registroOk_) {
+    cambiarA(Estado::ERROR_REGISTRO, "no se puede recuperar el historial: revisar NVS");
+    return;
+  }
+  if (!hw_.servoPreparado()) {
+    cambiarA(Estado::ERROR_SERVO, "PWM no inicializado");
+    return;
+  }
+  if (huboRacion_) hw_.log("Historial recuperado: plazos conservadores desde este arranque (sin RTC)");
   if (!hw_.wifiConectado()) {
     cambiarA(Estado::ERROR_WIFI, "sin Wi-Fi al iniciar");
   } else {
@@ -128,7 +149,8 @@ void Controlador::cambiarA(Estado nuevo, const char* motivo) {
 
 bool Controlador::esErrorBloqueante() const {
   // Requieren intervención humana (revisar mecánica / cableado del servo)
-  return estado_ == Estado::ERROR_SERVO || estado_ == Estado::ERROR_MECANISMO;
+  return estado_ == Estado::ERROR_SERVO || estado_ == Estado::ERROR_MECANISMO ||
+         estado_ == Estado::ERROR_REGISTRO;
 }
 
 bool Controlador::mascotaPresente(float d) const {
@@ -145,6 +167,7 @@ void Controlador::volverAEsperar(const char* motivo) {
 }
 
 void Controlador::borrarErrores() {
+  if (!registroOk_ || !hw_.servoPreparado()) return;
   if (estado_ >= Estado::ERROR_WIFI) {
     volverAEsperar("errores borrados manualmente");
   }
@@ -153,7 +176,7 @@ void Controlador::borrarErrores() {
 // ----------------------------------------------------------------------------
 // Registro de raciones (ventana móvil de 24 h, sin reloj de tiempo real)
 // ----------------------------------------------------------------------------
-void Controlador::registrarRacion(int clase) {
+bool Controlador::registrarRacion(int clase) {
   uint32_t ahora = hw_.ahoraMs();
   registro_[clase][posRegistro_[clase]] = ahora;
   posRegistro_[clase] = (posRegistro_[clase] + 1) % REGISTRO;
@@ -161,6 +184,31 @@ void Controlador::registrarRacion(int clase) {
   totales_[clase]++;
   huboRacion_ = true;
   tUltimaRacion_ = ahora;
+  return guardarRegistro();
+}
+
+bool Controlador::guardarRegistro() {
+  if (!hw_.guardarRaciones(nRegistro_, totales_, N_CLASES)) {
+    registroOk_ = false;
+    cambiarA(Estado::ERROR_REGISTRO, "no se pudo guardar: motor bloqueado");
+    return false;
+  }
+  return true;
+}
+
+void Controlador::depurarRegistro() {
+  bool cambio = false;
+  const uint32_t ahora = hw_.ahoraMs();
+  for (int c = 1; c < N_CLASES; c++) {
+    uint8_t n = 0;
+    for (uint8_t i = 0; i < nRegistro_[c]; i++) {
+      if (ahora - registro_[c][i] < MS_24H) registro_[c][n++] = registro_[c][i];
+    }
+    cambio = cambio || n != nRegistro_[c];
+    nRegistro_[c] = n;
+    posRegistro_[c] = n % REGISTRO;
+  }
+  if (cambio) guardarRegistro();
 }
 
 uint8_t Controlador::racionesUltimas24h(int clase) const {
@@ -211,6 +259,9 @@ bool Controlador::racionPermitida(int clase, char* porque, int n) {
 // ----------------------------------------------------------------------------
 void Controlador::actualizar() {
   const uint32_t ahora = hw_.ahoraMs();
+  if (!registroOk_) return;
+  depurarRegistro();
+  if (!registroOk_) return;
 
   // --- Botón de reset de errores (cualquier estado de error) ---
   if (estado_ >= Estado::ERROR_WIFI && hw_.botonResetPulsado()) {
@@ -353,16 +404,19 @@ void Controlador::actualizar() {
     case Estado::DOSIFICANDO: {
       uint8_t ciclos = p_.ciclos[ultimaClase_];
       if (ciclos > p_.maxCiclosPorRacion) ciclos = p_.maxCiclosPorRacion;
+      if (!hw_.servoPreparado()) {
+        cambiarA(Estado::ERROR_SERVO, "PWM no inicializado");
+        break;
+      }
+      if (!registrarRacion(ultimaClase_)) break;
       ResultadoDosis r = hw_.dosificar(ciclos);
       if (r == ResultadoDosis::OK) {
-        registrarRacion(ultimaClase_);
         nivelMedido_ = false;   // volver a medir la tolva enseguida
         cambiarA(Estado::FINALIZADO, "racion entregada");
       } else if (r == ResultadoDosis::SIN_ALIMENTACION_SERVO) {
         cambiarA(Estado::ERROR_SERVO, "el servo perdio alimentacion");
       } else {
-        // Por seguridad también se cuenta: pudo haber caído alimento.
-        registrarRacion(ultimaClase_);
+        // El intento ya quedó guardado antes de mover el motor.
         cambiarA(Estado::ERROR_MECANISMO, "posible atasco del dosificador");
       }
       break;
@@ -407,6 +461,7 @@ void Controlador::actualizar() {
       break;
 
     case Estado::ERROR_SERVO:
+    case Estado::ERROR_REGISTRO:
     case Estado::ERROR_MECANISMO:
       // Bloqueantes: solo salen con borrarErrores() (botón BOOT o comando RESET)
       break;

@@ -1,3 +1,5 @@
+> Alimentación corregida: A debe ser buck-boost de 6 V ≥3 A y B un buck de bajo dropout de 5 V ≥2 A, ambos garantizados para Vin 6,0–8,4 V. XL4015 no cubre este rango (mínimo 8 V). Ver [calibración y puesta en marcha](../calibration/calibracion.md).
+
 # Manual de armado · Dispensador inteligente de alimento para mascotas
 
 **Torre modular impresa en 3D + estación solar remota + sensor de nivel en la tolva**

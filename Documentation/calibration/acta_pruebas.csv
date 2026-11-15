@@ -1,0 +1,11 @@
+fecha,firmware,prueba,condicion,valor_medido,unidad,criterio,resultado,evidencia
+,,riel_servo,bateria_llena,,,minimo_5.8_V_en_giro,PENDIENTE,
+,,riel_servo,bateria_6.8_V,,,minimo_5.8_V_en_giro,PENDIENTE,
+,,riel_logica,bateria_6.8_V,,,5.0_a_5.1_V,PENDIENTE,
+,,dosificacion,tolva_llena,,,CV_maximo_10_por_ciento,PENDIENTE,
+,,dosificacion,tolva_media,,,CV_maximo_10_por_ciento,PENDIENTE,
+,,dosificacion,tolva_baja,,,CV_maximo_10_por_ciento,PENDIENTE,
+,,vision,imagenes_reservadas,,,cero_decisiones_peligrosas_y_90_por_ciento_deteccion,PENDIENTE,
+,,nivel,cruce_umbral,,,alerta_en_maximo_3_minutos,PENDIENTE,
+,,reinicio,despues_de_una_racion,,,conserva_limites,PENDIENTE,
+,,integracion,funcionamiento_continuo,,,sin_reinicios_1_hora,PENDIENTE,

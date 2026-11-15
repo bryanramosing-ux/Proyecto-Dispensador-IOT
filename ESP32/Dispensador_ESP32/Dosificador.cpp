@@ -23,12 +23,14 @@ void Dosificador::escribirPulso(uint16_t us) {
 }
 
 bool Dosificador::iniciar() {
+  inicializado_ = false;
 #if defined(ESP_ARDUINO_VERSION_MAJOR) && ESP_ARDUINO_VERSION_MAJOR >= 3
   if (!ledcAttach(pin_, FREQ_HZ, RES_BITS)) return false;
 #else
-  ledcSetup(CANAL_LEDC, FREQ_HZ, RES_BITS);
+  if (ledcSetup(CANAL_LEDC, FREQ_HZ, RES_BITS) == 0) return false;
   ledcAttachPin(pin_, CANAL_LEDC);
 #endif
+  inicializado_ = true;
   // Posición inicial desconocida: se envía CERRADO directamente (sin rampa).
   escribirPulso(PULSO_CERRADO_US);
   delay(800);
@@ -37,6 +39,7 @@ bool Dosificador::iniciar() {
 }
 
 void Dosificador::liberar() {
+  if (!inicializado_) return;
 #if defined(ESP_ARDUINO_VERSION_MAJOR) && ESP_ARDUINO_VERSION_MAJOR >= 3
   ledcWrite(pin_, 0);
 #else
@@ -78,6 +81,7 @@ bool Dosificador::esperar(uint32_t ms) {
 }
 
 bool Dosificador::rampa(uint16_t destino) {
+  if (!inicializado_) return false;
   if (destino < PULSO_MIN_US) destino = PULSO_MIN_US;
   if (destino > PULSO_MAX_US) destino = PULSO_MAX_US;
   enCaida_ = false;
@@ -117,6 +121,7 @@ bool Dosificador::moverConReintentos(uint16_t destino, uint16_t anterior) {
 }
 
 ResultadoDosis Dosificador::dosificar(uint8_t ciclos) {
+  if (!inicializado_ || ciclos == 0 || ciclos > MAX_CICLOS_POR_RACION) return ResultadoDosis::ATASCO;
   atasco_ = false;
   sinRiel_ = false;
   if (vigilarRiel_ && energia_.servo() < VSERVO_MIN) {

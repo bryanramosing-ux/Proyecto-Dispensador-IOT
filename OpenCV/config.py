@@ -62,6 +62,7 @@ MAX_FOTOS_VISITA = _env("MAX_FOTOS_VISITA", 3, int)
 # --- Registro -----------------------------------------------------------------
 GUARDAR_CAPTURAS = _env("GUARDAR_CAPTURAS", 1, int) == 1
 DIR_CAPTURAS = _env("DIR_CAPTURAS", str(BASE_DIR / "capturas"))
+MAX_CAPTURAS = _env("MAX_CAPTURAS", 1000, int)  # límite global de JPEG guardados
 
 # --- ESP32 y alertas ------------------------------------------------------------
 # IP del ESP32 controlador (el panel web del PC consulta su /status)

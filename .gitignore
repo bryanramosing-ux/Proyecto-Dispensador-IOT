@@ -5,6 +5,8 @@
 OpenCV/model/*.onnx
 OpenCV/model/imagenet_classes.txt
 OpenCV/capturas/
+OpenCV/dispensador.env
+**/.venv/
 OpenCV/dataset/
 OpenCV/imagenes_prueba/
 __pycache__/
@@ -13,4 +15,7 @@ __pycache__/
 # Compilación
 .pio/
 ESP32/test_host/test_controlador
+ESP32/test_host/test_dosificador_2
+ESP32/test_host/test_dosificador_3
+ESP32/test_host/test_historial
 ESP32/test_host/ArduinoJson/

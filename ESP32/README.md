@@ -69,7 +69,7 @@ Todo esto corre automáticamente en GitHub Actions (`.github/workflows/verificac
 
 ```bash
 cd ESP32/test_host
-make                       # 26 escenarios de la máquina de estados (5 del sensor de nivel, 2 de las fotos cada 2 s)
+make                       # 32 escenarios de la máquina de estados (5 del sensor de nivel, 2 de las fotos cada 2 s)
 git clone --depth 1 https://github.com/bblanchon/ArduinoJson
 make sintaxis              # compila todo el firmware (ESP32 y ESP32-CAM) contra stubs de Arduino, API núcleo 2.x y 3.x
 ```
@@ -114,3 +114,25 @@ borraban cada 50 ms; ahora cada pulsación larga produce un solo borrado.
 
 Lo que ninguna de estas pruebas sustituye: Wi-Fi, cámara, HC-SR04, servo y tensiones reales (plan de pruebas del
 README principal, §38).
+
+## Historial y fallos de alimentación
+
+Cada intento se reserva en NVS antes de mover el motor, incluso si termina con una
+pérdida de alimentación o atasco. La escritura es un único blob con versión y suma
+de comprobación; un fallo de lectura/escritura produce `ERROR_REGISTRO` y bloquea
+la entrega. RESET no borra ese error ni el historial. No borrar la flash para saltarse
+los límites: ante corrupción, retirar alimento, revisar la memoria y mantener
+control manual de lo ya entregado durante al menos 24 h antes de reinicializarla.
+
+Sin RTC, al arrancar las raciones recuperadas se consideran recién intentadas.
+Por tanto los cooldowns y la ventana de 24 h vuelven a comenzar; no se inventa tiempo
+transcurrido mientras la placa estaba apagada. Las entradas caducadas se eliminan
+durante funcionamiento continuo, evitando que reaparezcan al desbordarse millis().
+
+El modo predeterminado es doméstico (`MODO_FERIA 0`). `CICLO` es un comando de
+calibración que exige modo feria; no se usa para alimentar mascotas ni se registra
+como ración. El fallo de inicialización PWM bloquea el motor y requiere corregir
+el problema y reiniciar.
+
+`make -C ESP32/test_host` incluye además pruebas del dosificador real contra las
+API 2.x/3.x y del almacenamiento NVS (corrupción, reinicio y fallos de escritura).
