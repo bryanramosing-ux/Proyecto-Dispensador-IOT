@@ -1,0 +1,41 @@
+id,tipo,valor_o_dominio,origen,destino,nota
+W01,cable,usb,DEV.5V,L+5,Baja corriente / senal
+W02,cable,gnd,DEV.GND,L-6,Baja corriente / senal
+W03,cable,trig,DEV.GPIO19,a8,Baja corriente / senal
+W04,cable,echo,DEV.GPIO21,a12,Baja corriente / senal
+W05,cable,trig,DEV.GPIO26,a26,Baja corriente / senal
+W06,cable,echo,DEV.GPIO34,a30,Baja corriente / senal
+W07,cable,pwm,DEV.GPIO25,a48,Baja corriente / senal
+W08,cable,usb,NIV.VCC,L+10,Baja corriente / senal
+W09,cable,trig,NIV.TRIG,b8,Baja corriente / senal
+W10,cable,raw,NIV.ECHO,a10,Baja corriente / senal
+W11,cable,gnd,NIV.GND,L-14,Baja corriente / senal
+W12,cable,usb,PRE.VCC,L+28,Baja corriente / senal
+W13,cable,trig,PRE.TRIG,b26,Baja corriente / senal
+W14,cable,raw,PRE.ECHO,a28,Baja corriente / senal
+W15,cable,gnd,PRE.GND,L-36,Baja corriente / senal
+W16,cable,gnd,d16,L-16,Baja corriente / senal
+W17,cable,gnd,d34,L-34,Baja corriente / senal
+W18,cable,gnd,d56,L-56,Baja corriente / senal
+W19,cable,pwm,e52,SERVO.SIG,Baja corriente / senal
+W20,cable,usb,L+31,L+32,Baja corriente / senal
+W21,cable,gnd,L-31,L-32,Baja corriente / senal
+W22,cable,ext,F.+,TB+.IN,Potencia fuera de protoboard
+W23,cable,gnd,F.-,TB-.IN,Potencia fuera de protoboard
+W24,cable,ext,TB+.SERVO,SERVO.V+,Potencia fuera de protoboard
+W25,cable,gnd,TB-.SERVO,SERVO.GND,Potencia fuera de protoboard
+W26,cable,ext,TB+.CAM,CAM.5V,Potencia fuera de protoboard
+W27,cable,gnd,TB-.CAM,CAM.GND,Potencia fuera de protoboard
+W28,cable,gnd,DEV.GND,TB-.REF,Referencia GND directa a estrella
+R1,resistencia,1 kΩ,b10,b12,1/4 W; divisores preferiblemente 1 %
+R2,resistencia,2 kΩ,c12,c16,1/4 W; divisores preferiblemente 1 %
+R3,resistencia,1 kΩ,b28,b30,1/4 W; divisores preferiblemente 1 %
+R4,resistencia,2 kΩ,c30,c34,1/4 W; divisores preferiblemente 1 %
+R5,resistencia,330 Ω,b48,b52,1/4 W; divisores preferiblemente 1 %
+R6,resistencia,10 kΩ,c52,c56,1/4 W; divisores preferiblemente 1 %
+C1,condensador,1000–2200 µF / ≥10 V,SERVO.V+,SERVO.GND,"Local al modulo; electrolitico: + en origen, - en destino"
+C2,condensador,100 nF,SERVO.V+,SERVO.GND,Ceramico sin polaridad; local al modulo
+C3,condensador,470 µF / ≥10 V,CAM.5V,CAM.GND,"Local al modulo; electrolitico: + en origen, - en destino"
+C4,condensador,100 nF,CAM.5V,CAM.GND,Ceramico sin polaridad; local al modulo
+C5,condensador,100 nF,NIV.VCC,NIV.GND,Ceramico sin polaridad; local al modulo
+C6,condensador,100 nF,PRE.VCC,PRE.GND,Ceramico sin polaridad; local al modulo

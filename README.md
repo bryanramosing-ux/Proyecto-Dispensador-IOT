@@ -137,6 +137,7 @@ Revisar [docs/pruebas.md](docs/pruebas.md). Antes de conectar alimento o permiti
 
 ## 9. Documentación vigente y heredada
 
+- [Guía completa de ensamblaje en protoboard, pinout y energía](docs/guia_ensamblaje_protoboard.md) — incluye [lámina técnica ampliable](docs/imagenes/protoboard_conexiones.svg), [PNG detallado](docs/imagenes/protoboard_conexiones.png) y [lista de cables](docs/protoboard_conexiones.csv).
 - [Lista de materiales vigente](Documentation/components/lista_materiales.csv)
 - [Manual de montaje con USB del PC y fuente externa](Documentation/manual_armado/Manual_de_Armado.md)
 - [Conexiones eléctricas de laboratorio](docs/conexiones_usbc.md)
@@ -164,3 +165,4 @@ HTTP, del dosificador y del historial se ejecutan en GitHub Actions.
 La [guía de calibración](Documentation/calibration/calibracion.md) incluye el acta
 para las medidas físicas pendientes. Las pruebas automáticas no certifican gramos,
 consumo, exactitud del nivel ni movimiento físico del MG995.
+

@@ -8,12 +8,12 @@
 
 - ESP32 DevKit V1: controlador principal.
 - ESP32-CAM AI-Thinker con OV2640 y PSRAM: captura y transmisión MJPEG por Wi-Fi.
-- Un HC-SR04: medición del nivel de alimento en la tolva.
+- Dos HC-SR04: uno mide nivel de alimento en tolva y otro detecta presencia de mascota.
 - Un servomotor MG995 posicional de 180°: mecanismo dosificador.
 - PC/notebook en la misma red Wi-Fi: backend local y dashboard.
 - Fuente regulada de 5 V; recomendación inicial de 5 A continuos y distribución separada para servo y lógica.
 
-La detección automática de presencia y la clasificación OpenCV perro/gato **no están activadas en esta rama**. El control del dashboard es manual y requiere confirmación. El sensor de presencia opcional permanece desactivado (USAR_DETECCION_AUTOMATICA=0).
+La detección automática de presencia y la clasificación OpenCV perro/gato **no están activadas en esta rama**. El control del dashboard es manual y requiere confirmación. El sensor de presencia está instalado, pero la automatización permanece desactivada (USAR_DETECCION_AUTOMATICA=0).
 
 ## 2. Componentes
 
@@ -43,6 +43,17 @@ Consulte la [lista de materiales vigente](../components/lista_materiales.csv). N
 | ECHO | GPIO21 mediante divisor 1 kΩ/2 kΩ | Nunca conectar ECHO de 5 V directamente al ESP32 |
 
 Divisor: ECHO del sensor → resistencia 1 kΩ → nodo GPIO21; desde ese nodo resistencia 2 kΩ → GND. Mida la tensión del nodo antes de conectarlo al GPIO.
+
+### HC-SR04 de presencia
+
+| HC-SR04 presencia | ESP32 DevKit V1 | Observación |
+|---|---|---|
+| VCC | 5 V del DevKit alimentado por USB, tras verificar capacidad | No conectar a la fuente externa positiva |
+| GND | GND común | Mismo riel de tierra de sensores |
+| TRIG | GPIO26 | Salida de disparo |
+| ECHO | GPIO34 mediante SEGUNDO divisor 1 kΩ/2 kΩ | GPIO34 es solo entrada; nunca 5 V directo |
+
+Segundo divisor: ECHO presencia → 1 kΩ → nodo GPIO34; desde ese nodo 2 kΩ → GND. No compartir los nodos ECHO. Separar temporalmente los disparos de ambos HC-SR04 para evitar interferencias. Con `USAR_DETECCION_AUTOMATICA=0`, este sensor no inicia dispensaciones.
 
 ### MG995
 
@@ -78,7 +89,7 @@ El dashboard muestra telemetría, cámara MJPEG, capturas, galería, historial y
 2. Compruebe continuidad: no debe existir cortocircuito entre 5 V y GND.
 3. Pruebe primero el DevKit por USB sin servo; compruebe el HC-SR04 y después alimente la ESP32-CAM por su rama externa de 5 V. Mida cada tensión antes de conectar las placas.
 4. Compruebe /status, captura JPEG y stream de ESP32-CAM.
-5. Compruebe el HC-SR04: mida el nodo ECHO del divisor y compare distancias conocidas. Calibre tolva vacía y llena.
+5. Compruebe ambos HC-SR04 por separado: mida el nodo ECHO del divisor y compare distancias conocidas. Calibre tolva vacía y llena.
 6. Con la fuente apagada, conecte el MG995. Verifique alimentación directa desde la rama de potencia y GND común.
 7. Pruebe el servo sin alimento y sin acoplarlo al mecanismo. Use movimientos pequeños y detenga ante topes, vibración o calentamiento.
 8. Calibre las posiciones del disco y pruebe primero con pocas croquetas, pesando cada porción.
@@ -89,7 +100,7 @@ El dashboard muestra telemetría, cámara MJPEG, capturas, galería, historial y
 
 - No se ha validado el hardware físico ni la dosificación con alimento.
 - Los parámetros de distancia, porcentaje de tolva, pulsos del servo y tamaño de porción son provisionales hasta calibrarlos.
-- El firmware actual tiene detección automática desactivada y un único sensor de nivel habilitado.
+- El firmware tiene habilitado el sensor de nivel y mantiene la detección automática de presencia desactivada hasta validar visión y seguridad.
 - OpenCV existe en el repositorio, pero no está integrado en el flujo activo de esta rama.
 - El modelo de cámara 5110V0 no está confirmado; no conectarlo.
 - Sin fusible, la fuente y la instalación deben proporcionar protección apropiada; no presentar el montaje como seguro hasta revisarlo y medirlo.

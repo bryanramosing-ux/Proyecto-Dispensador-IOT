@@ -1,7 +1,7 @@
 // =============================================================================
 //  config.h  -  Configuración del ESP32 DevKit V1 (controlador del dispensador)
 // =============================================================================
-//  Montaje vigente: fuente regulada USB-C/5 V, SIN panel solar, SIN batería,
+//  Montaje vigente: DevKit por USB del PC + fuente regulada externa de 5 V para CAM/MG995, SIN panel solar, SIN batería,
 //  SIN fusible del diseño anterior y con DOS HC-SR04 instalados: nivel de tolva y presencia de mascota. Esquema y tablas: docs/conexiones_usbc.md
 //
 //  Los datos de TU red (Wi-Fi, token, IP) NO van aquí: van en secrets.h
@@ -62,7 +62,7 @@
 #define HABILITAR_MANUAL         true
 #define CICLOS_POR_PORCION          1    // PROVISIONAL: ciclos del disco por porción (pesar con balanza)
 #define MAX_PORCIONES_MANUAL        3    // máximo por pedido: un pedido inválido NO mueve el servo
-#define BOTON_DISPENSA_LOCAL        1    // 1 = pulsación corta de BOOT entrega 1 porción (control local sin Wi-Fi)
+#define BOTON_DISPENSA_LOCAL        0    // Seguro para montaje: BOOT no dispensa por pulsación accidental; habilitar solo tras calibración
 
 // -----------------------------------------------------------------------------
 // 4. MODO AUTOMÁTICO OPCIONAL (segundo HC-SR04 de presencia + visión en el PC)
